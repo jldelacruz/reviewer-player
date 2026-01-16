@@ -110,7 +110,7 @@ export default function ReviewerDetailsScreen({ route, navigation }) {
 
           <IconButton
             icon={isPlaying ? "stop-circle" : "play-circle"}
-            size={30}
+            size={35}
             iconColor={isPlaying ? "#e53935" : "#4caf50"}
             disabled={qnas.length === 0}
             onPress={toggleTTS}
