@@ -7,6 +7,7 @@ import {
   ProgressBar,
   IconButton,
 } from "react-native-paper";
+import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -59,11 +60,21 @@ export default function QuizScreen({ route, navigation }) {
     setShowAnswer(true);
 
     if (choice === current.answer) {
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success
+      );
       setCorrectCount((prev) => prev + 1);
+    } else {
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Error
+      );
     }
   };
 
+
   const nextQuestion = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     setSelected(null);
     setShowAnswer(false);
 
@@ -75,12 +86,12 @@ export default function QuizScreen({ route, navigation }) {
           total: questions.length,
         })
       );
-
       navigation.goBack();
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
   };
+
 
   if (!current) {
     return (

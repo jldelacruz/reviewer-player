@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Modal,
   Pressable,
+  Alert,
 } from "react-native";
 import {
   Text,
@@ -14,17 +15,18 @@ import {
   Button,
   IconButton,
 } from "react-native-paper";
+import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import uuid from "react-native-uuid";
 
 export default function QnAScreen({ route, navigation }) {
   const { reviewer } = route.params;
-
   const STORAGE_KEY = `reviewer_${reviewer.id}_qa`;
 
   const [qnas, setQnas] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingQna, setEditingQna] = useState(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
 
@@ -32,39 +34,116 @@ export default function QnAScreen({ route, navigation }) {
     loadQnA();
   }, []);
 
-  // 📥 Load Q&A
+  /* =====================
+     📥 LOAD / SAVE
+     ===================== */
+
   const loadQnA = async () => {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     if (stored) setQnas(JSON.parse(stored));
   };
 
-  // 💾 Save Q&A
   const saveQnA = async (data) => {
     setQnas(data);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   };
 
-  // ➕ Create Q&A
-  const createQnA = async () => {
-    if (!question.trim() || !answer.trim()) return;
+  /* =====================
+     ➕ ADD / ✏️ EDIT
+     ===================== */
 
-    const newItem = {
-      id: uuid.v4(),
-      question: question.trim(),
-      answer: answer.trim(),
-    };
-
-    const updated = [...qnas, newItem];
-    await saveQnA(updated);
-
+  const openAddModal = () => {
+    setEditingQna(null);
     setQuestion("");
     setAnswer("");
+    setModalVisible(true);
+  };
+
+  const openEditModal = (item) => {
+    setEditingQna(item);
+    setQuestion(item.question);
+    setAnswer(item.answer);
+    setModalVisible(true);
+  };
+
+  const saveQnAItem = async () => {
+    if (!question.trim() || !answer.trim()) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    let updated;
+
+    if (editingQna) {
+      updated = qnas.map((q) =>
+        q.id === editingQna.id
+          ? { ...q, question, answer }
+          : q
+      );
+    } else {
+      updated = [
+        ...qnas,
+        {
+          id: uuid.v4(),
+          question: question.trim(),
+          answer: answer.trim(),
+        },
+      ];
+    }
+
+    await saveQnA(updated);
     setModalVisible(false);
   };
+
+  /* =====================
+     🗑️ DELETE
+     ===================== */
+
+  const deleteQnA = (id) => {
+    Alert.alert(
+      "Delete Q&A",
+      "Are you sure you want to delete this item?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Warning
+            );
+            const updated = qnas.filter((q) => q.id !== id);
+            await saveQnA(updated);
+          },
+        },
+      ]
+    );
+  };
+
+  /* =====================
+     🎴 RENDER ITEM
+     ===================== */
 
   const renderItem = ({ item }) => (
     <Card style={styles.card}>
       <Card.Content>
+        {/* ACTION ICONS */}
+        <View style={styles.cardActions}>
+          <IconButton
+            icon="pencil"
+            size={20}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              openEditModal(item);
+            }}
+          />
+          <IconButton
+            icon="delete"
+            size={20}
+            iconColor="#e53935"
+            onPress={() => deleteQnA(item.id)}
+          />
+        </View>
+
         <View style={styles.row}>
           <IconButton icon="help-circle-outline" size={20} />
           <Text style={styles.question}>{item.question}</Text>
@@ -83,10 +162,7 @@ export default function QnAScreen({ route, navigation }) {
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
-          <IconButton
-            icon="arrow-left"
-            onPress={() => navigation.goBack()}
-          />
+          <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
           <Text variant="titleLarge" style={styles.headerText}>
             {reviewer.title}
           </Text>
@@ -109,10 +185,14 @@ export default function QnAScreen({ route, navigation }) {
         <FAB
           icon="plus"
           style={styles.fab}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            openAddModal();
+          }}
         />
 
-        {/* CREATE MODAL */}
+
+        {/* MODAL */}
         <Modal transparent visible={modalVisible} animationType="fade">
           <Pressable
             style={styles.overlay}
@@ -121,7 +201,7 @@ export default function QnAScreen({ route, navigation }) {
 
           <View style={styles.modal}>
             <Text variant="titleLarge" style={styles.modalTitle}>
-              Add Q&A
+              {editingQna ? "Edit Q&A" : "Add Q&A"}
             </Text>
 
             <TextInput
@@ -146,16 +226,13 @@ export default function QnAScreen({ route, navigation }) {
 
             <Button
               mode="contained"
-              onPress={createQnA}
+              onPress={saveQnAItem}
               style={{ marginTop: 16 }}
             >
               Save
             </Button>
 
-            <Button
-              mode="text"
-              onPress={() => setModalVisible(false)}
-            >
+            <Button mode="text" onPress={() => setModalVisible(false)}>
               Cancel
             </Button>
           </View>
@@ -164,6 +241,10 @@ export default function QnAScreen({ route, navigation }) {
     </SafeAreaView>
   );
 }
+
+/* =====================
+   🎨 STYLES
+   ===================== */
 
 const styles = StyleSheet.create({
   container: {
@@ -185,6 +266,13 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
     borderRadius: 12,
+  },
+
+  cardActions: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    flexDirection: "row",
   },
 
   row: {

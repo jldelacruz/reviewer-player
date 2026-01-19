@@ -3,13 +3,13 @@ import { View, StyleSheet } from "react-native";
 import {
   Text,
   Button,
-  Card,
-  ProgressBar,
   IconButton,
+  ProgressBar,
 } from "react-native-paper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Speech from "expo-speech";
+import * as Haptics from "expo-haptics";
 
 export default function ReviewerDetailsScreen({ route, navigation }) {
   const { reviewer } = route.params;
@@ -23,34 +23,26 @@ export default function ReviewerDetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     loadStats();
-
-    return () => {
-      Speech.stop(); // 🛑 stop when leaving screen
-    };
+    return () => Speech.stop();
   }, []);
 
   const loadStats = async () => {
-    try {
-      const scoreKey = `reviewer_${reviewer.id}_last_score`;
-      const qaKey = `reviewer_${reviewer.id}_qa`;
+    const scoreKey = `reviewer_${reviewer.id}_last_score`;
+    const qaKey = `reviewer_${reviewer.id}_qa`;
 
-      const savedScore = await AsyncStorage.getItem(scoreKey);
-      const savedQA = await AsyncStorage.getItem(qaKey);
+    const savedScore = await AsyncStorage.getItem(scoreKey);
+    const savedQA = await AsyncStorage.getItem(qaKey);
 
-      const parsedQA = savedQA ? JSON.parse(savedQA) : [];
+    const parsedQA = savedQA ? JSON.parse(savedQA) : [];
 
-      setLastScore(savedScore ? JSON.parse(savedScore) : null);
-      setTotalQuestions(parsedQA.length);
-      setQnas(parsedQA);
-    } catch (e) {
-      console.log("Load stats error", e);
-    }
+    setLastScore(savedScore ? JSON.parse(savedScore) : null);
+    setTotalQuestions(parsedQA.length);
+    setQnas(parsedQA);
   };
 
   /* =========================
-     🔊 TEXT TO SPEECH LOGIC
+     🔊 TEXT TO SPEECH
      ========================= */
-
   const stopTTS = () => {
     Speech.stop();
     setIsPlaying(false);
@@ -59,7 +51,7 @@ export default function ReviewerDetailsScreen({ route, navigation }) {
 
   const playNext = () => {
     if (currentIndexRef.current >= qnas.length) {
-      stopTTS(); // ✅ auto stop when done
+      stopTTS();
       return;
     }
 
@@ -77,22 +69,23 @@ export default function ReviewerDetailsScreen({ route, navigation }) {
     });
   };
 
-  const toggleTTS = () => {
+  const toggleTTS = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     if (isPlaying) {
       stopTTS();
     } else {
       if (qnas.length === 0) return;
-
       setIsPlaying(true);
       currentIndexRef.current = 0;
       playNext();
     }
   };
 
-  const scorePercent =
-    lastScore && lastScore.total > 0
-      ? lastScore.correct / lastScore.total
-      : 0;
+  const isLowScore =
+    lastScore &&
+    lastScore.total > 0 &&
+    lastScore.correct <= lastScore.total / 2;
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -101,7 +94,10 @@ export default function ReviewerDetailsScreen({ route, navigation }) {
         <View style={styles.header}>
           <IconButton
             icon="arrow-left"
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
           />
 
           <Text variant="headlineMedium" style={styles.title}>
@@ -110,72 +106,63 @@ export default function ReviewerDetailsScreen({ route, navigation }) {
 
           <IconButton
             icon={isPlaying ? "stop-circle" : "play-circle"}
-            size={35}
+            size={36}
             iconColor={isPlaying ? "#e53935" : "#4caf50"}
             disabled={qnas.length === 0}
             onPress={toggleTTS}
           />
         </View>
 
-        {/* SCORE CARD */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              Last Quiz Result
-            </Text>
+        {/* SCORE */}
+        <View style={styles.scoreContainer}>
+          <Text style={styles.scoreLabel}>Previous score</Text>
 
-            {lastScore ? (
-              <>
-                <Text style={styles.scoreText}>
-                  {lastScore.correct} / {lastScore.total} correct
-                </Text>
-
-                <ProgressBar
-                  progress={scorePercent}
-                  style={styles.progress}
-                />
-
-                <Text style={styles.percentText}>
-                  {Math.round(scorePercent * 100)}%
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.noScoreText}>
-                No quiz taken yet
+          {lastScore ? (
+            <>
+              <Text
+                style={[
+                  styles.bigScore,
+                  isLowScore && styles.lowScore,
+                ]}
+              >
+                {lastScore.correct}
               </Text>
-            )}
-          </Card.Content>
-        </Card>
 
-        {/* ACTIONS */}
+              <Text style={styles.scoreSub}>
+                over {totalQuestions} items
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.noScoreText}>
+              No quiz taken yet
+            </Text>
+          )}
+        </View>
+
+        <Button
+          mode="outlined"
+          icon="clipboard-check-outline"
+          style={styles.button}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.navigate("Quiz", { reviewer });
+          }}
+        >
+          Take Quiz
+        </Button>
+
         <View style={styles.actions}>
           <Button
             mode="contained"
             icon="book-open-page-variant"
-            onPress={() =>
-              navigation.navigate("QnA", { reviewer })
-            }
-            style={styles.button}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              navigation.navigate("QnA", { reviewer });
+            }}
           >
             Q & A
           </Button>
-
-          <Button
-            mode="outlined"
-            icon="clipboard-check-outline"
-            onPress={() =>
-              navigation.navigate("Quiz", { reviewer })
-            }
-            style={styles.button}
-          >
-            Take Quiz
-          </Button>
         </View>
-
-        {/* INFO */}
-        <Text style={styles.info}>
-          {totalQuestions} total questions
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -186,50 +173,55 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 24,
   },
+
   title: {
     fontWeight: "700",
     textAlign: "center",
     flex: 1,
   },
-  card: {
-    borderRadius: 16,
-    marginBottom: 24,
+
+  scoreContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
   },
-  cardTitle: {
-    fontWeight: "600",
-    marginBottom: 12,
+
+  scoreLabel: {
+    opacity: 0.6,
+    marginBottom: 6,
+    fontSize: 20
   },
-  scoreText: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
+
+  bigScore: {
+    fontSize: 50,
+    fontWeight: "800",
+    color: "#2e7d32",
   },
-  progress: {
-    height: 10,
-    borderRadius: 6,
-    marginVertical: 8,
+
+  lowScore: {
+    color: "#d32f2f",
   },
-  percentText: {
-    textAlign: "right",
-    fontWeight: "600",
-    opacity: 0.7,
+
+  scoreSub: {
+    marginTop: 4,
+    opacity: 0.6,
   },
+
   noScoreText: {
     opacity: 0.6,
     fontStyle: "italic",
   },
-  actions: {
-    gap: 12,
-  },
+
   button: {
-    borderRadius: 12,
+    borderRadius: 14,
   },
+
   info: {
     marginTop: 24,
     textAlign: "center",
