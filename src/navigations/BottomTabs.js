@@ -18,7 +18,7 @@ export default function BottomTabs() {
           if (route.name === "Home") {
             iconName = focused ? "home" : "home-outline";
           } else if (route.name === "Reviewers") {
-            iconName = focused ? "book-open-page-variant" : "book-outline";
+            iconName = focused ? "book-open-page-variant" : "book-open-page-variant-outline";
           } else if (route.name === "Settings") {
             iconName = focused ? "cog" : "cog-outline";
           }
@@ -32,7 +32,7 @@ export default function BottomTabs() {
           );
         },
 
-        tabBarActiveTintColor: "#6200ee", // Purple highlight
+        tabBarActiveTintColor: "#4A90E2", // Purple highlight
         tabBarInactiveTintColor: "#8e8e8e",
         tabBarStyle: {
           height: 60,

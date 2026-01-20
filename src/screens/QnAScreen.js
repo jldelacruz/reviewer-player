@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import uuid from "react-native-uuid";
+import EmptyQnA from "../components/EmptyQnA";
 
 export default function QnAScreen({ route, navigation }) {
   const { reviewer } = route.params;
@@ -174,11 +175,7 @@ export default function QnAScreen({ route, navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 120 }}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              No Q&A yet. Tap + to add one.
-            </Text>
-          }
+          ListEmptyComponent={<EmptyQnA />}
         />
 
         {/* FAB */}

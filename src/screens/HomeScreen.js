@@ -9,6 +9,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import EmptyReviewers from "../components/EmptyReviewers";
 
 export default function HomeScreen({ navigation }) {
   const [reviewers, setReviewers] = useState([]);
@@ -124,11 +125,7 @@ export default function HomeScreen({ navigation }) {
           data={reviewers.slice(0, 3)}
           keyExtractor={(item) => item.id}
           renderItem={renderReviewer}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              Create your first reviewer to get started
-            </Text>
-          }
+          ListEmptyComponent={<EmptyReviewers />}
         />
 
         {/* PREMIUM HINT */}
@@ -154,6 +151,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#FFF'
   },
 
   greeting: {
