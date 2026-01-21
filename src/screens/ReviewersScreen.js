@@ -90,17 +90,11 @@ export default function ReviewersScreen({ navigation }) {
   const saveReviewer = async () => {
     if (!title.trim()) return;
 
-    let updated;
-
-    if (editingReviewer) {
-      updated = reviewers.map((r) =>
-        r.id === editingReviewer.id
-          ? { ...r, title: title.trim() }
-          : r
-      );
-    } else {
-      updated = [...reviewers, { id: uuid.v4(), title: title.trim() }];
-    }
+    const updated = editingReviewer
+      ? reviewers.map((r) =>
+          r.id === editingReviewer.id ? { ...r, title: title.trim() } : r
+        )
+      : [...reviewers, { id: uuid.v4(), title: title.trim() }];
 
     await saveReviewers(updated);
 
@@ -129,9 +123,7 @@ export default function ReviewersScreen({ navigation }) {
             await Haptics.notificationAsync(
               Haptics.NotificationFeedbackType.Warning
             );
-
-            const updated = reviewers.filter((r) => r.id !== item.id);
-            await saveReviewers(updated);
+            await saveReviewers(reviewers.filter((r) => r.id !== item.id));
           },
         },
       ]
@@ -143,16 +135,8 @@ export default function ReviewersScreen({ navigation }) {
      ===================== */
   const renderRightActions = (item) => (
     <View style={styles.swipeActions}>
-      <IconButton
-        icon="pencil"
-        iconColor="#1976d2"
-        onPress={() => openEditModal(item)}
-      />
-      <IconButton
-        icon="delete"
-        iconColor="#d32f2f"
-        onPress={() => deleteReviewer(item)}
-      />
+      <IconButton icon="pencil" iconColor="#1976d2" onPress={() => openEditModal(item)} />
+      <IconButton icon="delete" iconColor="#d32f2f" onPress={() => deleteReviewer(item)} />
     </View>
   );
 
@@ -161,26 +145,27 @@ export default function ReviewersScreen({ navigation }) {
      ===================== */
   const renderItem = ({ item }) => (
     <Swipeable
+      containerStyle={styles.swipeContainer} // ✅ critical
       renderRightActions={() => renderRightActions(item)}
       overshootRight={false}
-      onSwipeableOpen={() =>
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-      }
     >
-      <Card
-        style={styles.card}
-        onPress={async () => {
-          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          navigation.navigate("ReviewerDetails", { reviewer: item });
-        }}
-      >
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.cardTitle}>
-            {item.title}
-          </Text>
-          <Text style={styles.countText}>{item.count} Q&A</Text>
-        </Card.Content>
-      </Card>
+      {/* Shadow-safe wrapper */}
+      <View style={styles.cardWrapper}>
+        <Card
+          style={styles.card}
+          onPress={async () => {
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation.navigate("ReviewerDetails", { reviewer: item });
+          }}
+        >
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.cardTitle}>
+              {item.title}
+            </Text>
+            <Text style={styles.countText}>{item.count} Q&A</Text>
+          </Card.Content>
+        </Card>
+      </View>
     </Swipeable>
   );
 
@@ -191,16 +176,21 @@ export default function ReviewersScreen({ navigation }) {
           data={reviewers}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16, // ✅ moved here
+            paddingBottom: 120,
+            flexGrow: 1,
+          }}
           ListEmptyComponent={<EmptyReviewers onPress={openCreateModal} />}
         />
 
-        {reviewers?.count > 0 ? <FAB icon="plus" style={styles.fab} onPress={openCreateModal} /> : null } 
+        {reviewers.length > 0 && (
+          <FAB icon="plus" style={styles.fab} onPress={openCreateModal} backgroundColor='#4A90E2' color="#FFF" />
+        )}
 
         {/* MODAL */}
         <Modal transparent visible={modalVisible} animationType="fade">
           <Pressable style={styles.overlay} onPress={closeModal} />
-
           <View style={styles.modal}>
             <Text variant="titleLarge" style={styles.modalTitle}>
               {editingReviewer ? "Edit Reviewer" : "Create Reviewer"}
@@ -217,7 +207,6 @@ export default function ReviewersScreen({ navigation }) {
             <Button mode="contained" onPress={saveReviewer} style={{ marginTop: 16 }}>
               Save
             </Button>
-
             <Button mode="text" onPress={closeModal}>
               Cancel
             </Button>
@@ -234,38 +223,55 @@ export default function ReviewersScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
     backgroundColor: "#f6f7fb",
   },
-  card: {
-    marginBottom: 12,
-    borderRadius: 14,
+
+  swipeContainer: {
+    overflow: "visible", // ✅ REQUIRED
   },
+
+  cardWrapper: {
+    marginBottom: 12,
+    overflow: "visible", // ✅ REQUIRED
+  },
+
+  card: {
+    borderRadius: 14,
+    elevation: 4, // Android
+    shadowColor: "#000", // iOS
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+
   cardTitle: {
     fontWeight: "600",
   },
+
   countText: {
     marginTop: 4,
     opacity: 0.6,
   },
+
   fab: {
     position: "absolute",
     right: 24,
     bottom: 24,
   },
+
   swipeActions: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
-    paddingRight: 8,
-    marginBottom: 12,
+    paddingRight: 12,
     backgroundColor: "#f6f7fb",
     borderRadius: 14,
   },
+
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
   },
+
   modal: {
     position: "absolute",
     left: 20,
@@ -275,6 +281,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
   },
+
   modalTitle: {
     marginBottom: 12,
     fontWeight: "700",

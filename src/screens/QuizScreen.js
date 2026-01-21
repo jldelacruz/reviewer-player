@@ -32,11 +32,12 @@ export default function QuizScreen({ route, navigation }) {
     if (!saved) return;
 
     const parsed = JSON.parse(saved);
-    const shuffled = parsed.sort(() => Math.random() - 0.5);
+    const shuffled = [...parsed].sort(() => Math.random() - 0.5);
     setQuestions(shuffled);
   };
 
   const current = questions[currentIndex];
+  const progress = (currentIndex + 1) / questions.length;
 
   const generateChoices = () => {
     if (!current) return [];
@@ -53,27 +54,30 @@ export default function QuizScreen({ route, navigation }) {
 
   const choices = generateChoices();
 
-  const selectAnswer = (choice) => {
+  const selectAnswer = async (choice) => {
     if (showAnswer) return;
 
     setSelected(choice);
-    setShowAnswer(true);
 
-    if (choice === current.answer) {
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success
-      );
-      setCorrectCount((prev) => prev + 1);
-    } else {
-      Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Error
-      );
-    }
+    // ⏱ tiny delay = intentional UX
+    setTimeout(() => {
+      setShowAnswer(true);
+
+      if (choice === current.answer) {
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
+        setCorrectCount((prev) => prev + 1);
+      } else {
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Error
+        );
+      }
+    }, 200);
   };
 
-
   const nextQuestion = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     setSelected(null);
     setShowAnswer(false);
@@ -86,12 +90,16 @@ export default function QuizScreen({ route, navigation }) {
           total: questions.length,
         })
       );
+
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success
+      );
+
       navigation.goBack();
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
   };
-
 
   if (!current) {
     return (
@@ -101,26 +109,25 @@ export default function QuizScreen({ route, navigation }) {
     );
   }
 
-  const progress = (currentIndex + 1) / questions.length;
-
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
           <IconButton icon="close" onPress={() => navigation.goBack()} />
-          <ProgressBar progress={progress} style={styles.progress} />
+          <View style={{ flex: 1 }}>
+            <ProgressBar progress={progress} style={styles.progress} />
+            <Text style={styles.progressText}>
+              {currentIndex + 1} / {questions.length}
+            </Text>
+          </View>
         </View>
 
         {/* QUESTION */}
         <Card style={styles.card}>
           <Card.Content>
-            <Text style={styles.questionLabel}>
-              Question {currentIndex + 1}
-            </Text>
-            <Text style={styles.question}>
-              {current.question}
-            </Text>
+            <Text style={styles.questionLabel}>Question</Text>
+            <Text style={styles.question}>{current.question}</Text>
           </Card.Content>
         </Card>
 
@@ -149,7 +156,11 @@ export default function QuizScreen({ route, navigation }) {
                 mode={mode}
                 icon={icon}
                 onPress={() => selectAnswer(choice)}
-                style={styles.option}
+                style={[
+                  styles.option,
+                  showAnswer && isCorrect && styles.correct,
+                  showAnswer && isSelected && !isCorrect && styles.wrong,
+                ]}
               >
                 {choice}
               </Button>
@@ -175,6 +186,10 @@ export default function QuizScreen({ route, navigation }) {
   );
 }
 
+/* =====================
+   🎨 STYLES
+   ===================== */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -191,40 +206,59 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 8,
   },
 
   progress: {
-    flex: 1,
     height: 8,
     borderRadius: 6,
   },
 
+  progressText: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 4,
+    textAlign: "right",
+  },
+
   card: {
     marginTop: 16,
-    borderRadius: 16,
+    borderRadius: 18,
+    paddingVertical: 8,
   },
 
   questionLabel: {
-    opacity: 0.6,
+    opacity: 0.5,
     marginBottom: 6,
   },
 
   question: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
+    lineHeight: 28,
   },
 
   options: {
-    marginTop: 24,
+    marginTop: 28,
     gap: 12,
   },
 
   option: {
-    borderRadius: 12,
+    borderRadius: 14,
+    paddingVertical: 6,
+  },
+
+  correct: {
+    backgroundColor: "#E8F5E9",
+  },
+
+  wrong: {
+    backgroundColor: "#FDECEA",
   },
 
   nextBtn: {
-    marginTop: 24,
-    borderRadius: 14,
+    marginTop: 28,
+    borderRadius: 16,
+    paddingVertical: 6,
   },
 });

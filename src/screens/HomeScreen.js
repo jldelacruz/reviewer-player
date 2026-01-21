@@ -5,7 +5,6 @@ import {
   Card,
   Button,
   IconButton,
-  ProgressBar,
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -16,9 +15,13 @@ export default function HomeScreen({ navigation }) {
   const [totalQnA, setTotalQnA] = useState(0);
   const [lastScore, setLastScore] = useState(null);
 
+  /* =====================
+     🔄 REFRESH ON FOCUS
+     ===================== */
   useEffect(() => {
-    loadData();
-  }, []);
+    const unsubscribe = navigation.addListener("focus", loadData);
+    return unsubscribe;
+  }, [navigation]);
 
   const loadData = async () => {
     const storedReviewers = await AsyncStorage.getItem("reviewers");
@@ -39,8 +42,9 @@ export default function HomeScreen({ navigation }) {
       const score = await AsyncStorage.getItem(scoreKey);
 
       if (qnas) qnaCount += JSON.parse(qnas).length;
-      if (score && !recentScore)
+      if (score && !recentScore) {
         recentScore = JSON.parse(score);
+      }
     }
 
     setTotalQnA(qnaCount);
@@ -53,9 +57,8 @@ export default function HomeScreen({ navigation }) {
       : 0;
 
   /* =====================
-     🎴 RENDER RECENT ITEM
+     🎴 RENDER REVIEWER
      ===================== */
-
   const renderReviewer = ({ item }) => (
     <Card
       style={styles.reviewerCard}
@@ -74,7 +77,7 @@ export default function HomeScreen({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
       <View style={styles.container}>
         {/* GREETING */}
         <Text variant="headlineMedium" style={styles.greeting}>
@@ -87,9 +90,7 @@ export default function HomeScreen({ navigation }) {
         {/* STATS */}
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {reviewers.length}
-            </Text>
+            <Text style={styles.statNumber}>{reviewers.length}</Text>
             <Text style={styles.statLabel}>Reviewers</Text>
           </Card>
 
@@ -126,6 +127,10 @@ export default function HomeScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderReviewer}
           ListEmptyComponent={<EmptyReviewers />}
+          contentContainerStyle={{ 
+            paddingBottom: 16, 
+            paddingHorizontal: 1, // ✅ moved here 
+          }}
         />
 
         {/* PREMIUM HINT */}
@@ -151,7 +156,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#FFF'
+    backgroundColor: "#f6f7fb", // match reviewers screen
   },
 
   greeting: {
@@ -175,6 +180,11 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: "center",
     borderRadius: 14,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
 
   statNumber: {
@@ -200,8 +210,13 @@ const styles = StyleSheet.create({
   },
 
   reviewerCard: {
-    marginBottom: 10,
-    borderRadius: 12,
+    marginBottom: 12,
+    borderRadius: 14,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
 
   reviewerContent: {
@@ -217,12 +232,6 @@ const styles = StyleSheet.create({
   reviewerSub: {
     opacity: 0.5,
     fontSize: 12,
-  },
-
-  empty: {
-    opacity: 0.5,
-    textAlign: "center",
-    marginTop: 20,
   },
 
   premiumCard: {

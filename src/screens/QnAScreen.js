@@ -174,19 +174,22 @@ export default function QnAScreen({ route, navigation }) {
           data={qnas}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          ListEmptyComponent={<EmptyQnA />}
+          contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+          ListEmptyComponent={<EmptyQnA onPress={openAddModal} />}
         />
 
         {/* FAB */}
-        <FAB
-          icon="plus"
-          style={styles.fab}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            openAddModal();
-          }}
-        />
+        { qnas.count > 0 ? (
+          <FAB
+            icon="plus"
+            style={styles.fab}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              openAddModal();
+            }}
+          />
+          ) : null
+        }
 
 
         {/* MODAL */}
