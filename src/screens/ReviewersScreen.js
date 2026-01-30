@@ -24,20 +24,73 @@ import EmptyReviewers from "../components/EmptyReviewers";
 
 const STORAGE_KEY = "reviewers";
 
+const SETTINGS_KEYS = {
+  HAPTICS: "haptics_enabled",
+};
+
 export default function ReviewersScreen({ navigation }) {
   const [reviewers, setReviewers] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState("");
   const [editingReviewer, setEditingReviewer] = useState(null);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
   /* =====================
-     🔄 LOAD REVIEWERS
+     🔄 LOAD ON FOCUS
      ===================== */
   useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadReviewers);
+    const unsubscribe = navigation.addListener("focus", async () => {
+      await loadSettings();
+      await loadReviewers();
+    });
+
     return unsubscribe;
   }, [navigation]);
 
+  /* =====================
+     ⚙️ SETTINGS
+     ===================== */
+  const loadSettings = async () => {
+    const value = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
+    if (value !== null) {
+      setHapticsEnabled(value === "true");
+    }
+  };
+
+  /* =====================
+     📳 HAPTIC HELPERS
+     ===================== */
+  const lightImpact = async () => {
+    if (hapticsEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const mediumImpact = async () => {
+    if (hapticsEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
+  const successNotification = async () => {
+    if (hapticsEnabled) {
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success
+      );
+    }
+  };
+
+  const warningNotification = async () => {
+    if (hapticsEnabled) {
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Warning
+      );
+    }
+  };
+
+  /* =====================
+     📦 LOAD REVIEWERS
+     ===================== */
   const loadReviewers = async () => {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     if (!stored) {
@@ -53,7 +106,14 @@ export default function ReviewersScreen({ navigation }) {
         const qnaStored = await AsyncStorage.getItem(qnaKey);
         const qnaList = qnaStored ? JSON.parse(qnaStored) : [];
 
-        return { ...reviewer, count: qnaList.length };
+        const lastStudiedKey = `reviewer_${reviewer.id}_last_studied`;
+        const lastStudied = await AsyncStorage.getItem(lastStudiedKey);
+
+        return {
+          ...reviewer,
+          count: qnaList.length,
+          lastStudied,
+        };
       })
     );
 
@@ -69,21 +129,21 @@ export default function ReviewersScreen({ navigation }) {
      ➕ / ✏️ CREATE & EDIT
      ===================== */
   const openCreateModal = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await mediumImpact();
     setEditingReviewer(null);
     setTitle("");
     setModalVisible(true);
   };
 
   const openEditModal = async (item) => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await lightImpact();
     setEditingReviewer(item);
     setTitle(item.title);
     setModalVisible(true);
   };
 
   const closeModal = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await lightImpact();
     setModalVisible(false);
   };
 
@@ -92,15 +152,14 @@ export default function ReviewersScreen({ navigation }) {
 
     const updated = editingReviewer
       ? reviewers.map((r) =>
-          r.id === editingReviewer.id ? { ...r, title: title.trim() } : r
+          r.id === editingReviewer.id
+            ? { ...r, title: title.trim() }
+            : r
         )
       : [...reviewers, { id: uuid.v4(), title: title.trim() }];
 
     await saveReviewers(updated);
-
-    await Haptics.notificationAsync(
-      Haptics.NotificationFeedbackType.Success
-    );
+    await successNotification();
 
     setModalVisible(false);
     setTitle("");
@@ -120,10 +179,10 @@ export default function ReviewersScreen({ navigation }) {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            await Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Warning
+            await warningNotification();
+            await saveReviewers(
+              reviewers.filter((r) => r.id !== item.id)
             );
-            await saveReviewers(reviewers.filter((r) => r.id !== item.id));
           },
         },
       ]
@@ -135,8 +194,16 @@ export default function ReviewersScreen({ navigation }) {
      ===================== */
   const renderRightActions = (item) => (
     <View style={styles.swipeActions}>
-      <IconButton icon="pencil" iconColor="#1976d2" onPress={() => openEditModal(item)} />
-      <IconButton icon="delete" iconColor="#d32f2f" onPress={() => deleteReviewer(item)} />
+      <IconButton
+        icon="pencil"
+        iconColor="#1976d2"
+        onPress={() => openEditModal(item)}
+      />
+      <IconButton
+        icon="delete"
+        iconColor="#d32f2f"
+        onPress={() => deleteReviewer(item)}
+      />
     </View>
   );
 
@@ -145,16 +212,15 @@ export default function ReviewersScreen({ navigation }) {
      ===================== */
   const renderItem = ({ item }) => (
     <Swipeable
-      containerStyle={styles.swipeContainer} // ✅ critical
+      containerStyle={styles.swipeContainer}
       renderRightActions={() => renderRightActions(item)}
       overshootRight={false}
     >
-      {/* Shadow-safe wrapper */}
       <View style={styles.cardWrapper}>
         <Card
           style={styles.card}
           onPress={async () => {
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            await lightImpact();
             navigation.navigate("ReviewerDetails", { reviewer: item });
           }}
         >
@@ -162,12 +228,30 @@ export default function ReviewersScreen({ navigation }) {
             <Text variant="titleMedium" style={styles.cardTitle}>
               {item.title}
             </Text>
-            <Text style={styles.countText}>{item.count} Q&A</Text>
+
+            <Text style={styles.countText}>
+              {item.count} Q&A
+            </Text>
+
+            {item.lastStudied && (
+              <Text style={styles.lastStudiedText}>
+                {formatLastStudied(item.lastStudied)}
+              </Text>
+            )}
           </Card.Content>
         </Card>
       </View>
     </Swipeable>
   );
+
+  const formatLastStudied = (timestamp) => {
+    const diffMs = Date.now() - Number(timestamp);
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Last studied today";
+    if (diffDays === 1) return "Last studied yesterday";
+    return `Last studied ${diffDays} days ago`;
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
@@ -177,15 +261,23 @@ export default function ReviewersScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{
-            paddingHorizontal: 16, // ✅ moved here
+            paddingHorizontal: 16,
             paddingBottom: 120,
             flexGrow: 1,
           }}
-          ListEmptyComponent={<EmptyReviewers onPress={openCreateModal} />}
+          ListEmptyComponent={
+            <EmptyReviewers onPress={openCreateModal} />
+          }
         />
 
         {reviewers.length > 0 && (
-          <FAB icon="plus" style={styles.fab} onPress={openCreateModal} backgroundColor='#4A90E2' color="#FFF" />
+          <FAB
+            icon="plus"
+            style={styles.fab}
+            onPress={openCreateModal}
+            backgroundColor="#4A90E2"
+            color="#FFF"
+          />
         )}
 
         {/* MODAL */}
@@ -204,7 +296,11 @@ export default function ReviewersScreen({ navigation }) {
               autoFocus
             />
 
-            <Button mode="contained" onPress={saveReviewer} style={{ marginTop: 16 }}>
+            <Button
+              mode="contained"
+              onPress={saveReviewer}
+              style={{ marginTop: 16 }}
+            >
               Save
             </Button>
             <Button mode="text" onPress={closeModal}>
@@ -221,44 +317,20 @@ export default function ReviewersScreen({ navigation }) {
    🎨 STYLES
    ===================== */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f6f7fb",
-  },
-
-  swipeContainer: {
-    overflow: "visible", // ✅ REQUIRED
-  },
-
-  cardWrapper: {
-    marginBottom: 12,
-    overflow: "visible", // ✅ REQUIRED
-  },
-
+  container: { flex: 1, backgroundColor: "#f6f7fb" },
+  swipeContainer: { overflow: "visible" },
+  cardWrapper: { marginBottom: 12, overflow: "visible" },
   card: {
     borderRadius: 14,
-    elevation: 4, // Android
-    shadowColor: "#000", // iOS
+    elevation: 4,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
   },
-
-  cardTitle: {
-    fontWeight: "600",
-  },
-
-  countText: {
-    marginTop: 4,
-    opacity: 0.6,
-  },
-
-  fab: {
-    position: "absolute",
-    right: 24,
-    bottom: 24,
-  },
-
+  cardTitle: { fontWeight: "600" },
+  countText: { marginTop: 4, opacity: 0.6 },
+  fab: { position: "absolute", right: 24, bottom: 24 },
   swipeActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -266,12 +338,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f6f7fb",
     borderRadius: 14,
   },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
   modal: {
     position: "absolute",
     left: 20,
@@ -281,9 +348,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
   },
-
-  modalTitle: {
-    marginBottom: 12,
-    fontWeight: "700",
-  },
+  modalTitle: { marginBottom: 12, fontWeight: "700" },
+  lastStudiedText: { marginTop: 2, fontSize: 12, opacity: 0.5 },
 });

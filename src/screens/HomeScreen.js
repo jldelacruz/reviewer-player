@@ -8,21 +8,45 @@ import {
 } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
 import EmptyReviewers from "../components/EmptyReviewers";
+
+const SETTINGS_KEYS = {
+  HAPTICS: "haptics_enabled",
+};
 
 export default function HomeScreen({ navigation }) {
   const [reviewers, setReviewers] = useState([]);
   const [totalQnA, setTotalQnA] = useState(0);
   const [lastScore, setLastScore] = useState(null);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
   /* =====================
      🔄 REFRESH ON FOCUS
      ===================== */
   useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadData);
+    const unsubscribe = navigation.addListener("focus", async () => {
+      await loadSettings();
+      await loadData();
+      triggerSelection();
+    });
+
     return unsubscribe;
   }, [navigation]);
 
+  /* =====================
+     ⚙️ LOAD SETTINGS
+     ===================== */
+  const loadSettings = async () => {
+    const value = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
+    if (value !== null) {
+      setHapticsEnabled(value === "true");
+    }
+  };
+
+  /* =====================
+     📦 LOAD DATA
+     ===================== */
   const loadData = async () => {
     const storedReviewers = await AsyncStorage.getItem("reviewers");
     const parsedReviewers = storedReviewers
@@ -51,6 +75,27 @@ export default function HomeScreen({ navigation }) {
     setLastScore(recentScore);
   };
 
+  /* =====================
+     📳 HAPTIC HELPERS
+     ===================== */
+  const triggerSelection = async () => {
+    if (hapticsEnabled) {
+      await Haptics.selectionAsync();
+    }
+  };
+
+  const triggerLightImpact = async () => {
+    if (hapticsEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const triggerMediumImpact = async () => {
+    if (hapticsEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
   const scorePercent =
     lastScore && lastScore.total > 0
       ? lastScore.correct / lastScore.total
@@ -62,9 +107,10 @@ export default function HomeScreen({ navigation }) {
   const renderReviewer = ({ item }) => (
     <Card
       style={styles.reviewerCard}
-      onPress={() =>
-        navigation.navigate("ReviewerDetails", { reviewer: item })
-      }
+      onPress={async () => {
+        await triggerLightImpact();
+        navigation.navigate("ReviewerDetails", { reviewer: item });
+      }}
     >
       <Card.Content style={styles.reviewerContent}>
         <View>
@@ -101,9 +147,7 @@ export default function HomeScreen({ navigation }) {
 
           <Card style={styles.statCard}>
             <Text style={styles.statNumber}>
-              {lastScore
-                ? `${Math.round(scorePercent * 100)}%`
-                : "—"}
+              {lastScore ? `${Math.round(scorePercent * 100)}%` : "—"}
             </Text>
             <Text style={styles.statLabel}>Last Score</Text>
           </Card>
@@ -114,7 +158,10 @@ export default function HomeScreen({ navigation }) {
           mode="contained"
           icon="play-circle"
           style={styles.cta}
-          onPress={() => navigation.navigate("Reviewers")}
+          onPress={async () => {
+            await triggerMediumImpact();
+            navigation.navigate("Reviewers");
+          }}
         >
           Start Reviewing
         </Button>
@@ -127,14 +174,17 @@ export default function HomeScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={renderReviewer}
           ListEmptyComponent={<EmptyReviewers />}
-          contentContainerStyle={{ 
-            paddingBottom: 16, 
-            paddingHorizontal: 1, // ✅ moved here 
+          contentContainerStyle={{
+            paddingBottom: 16,
+            paddingHorizontal: 1,
           }}
         />
 
         {/* PREMIUM HINT */}
-        <Card style={styles.premiumCard}>
+        <Card
+          style={styles.premiumCard}
+          onPress={triggerMediumImpact}
+        >
           <Text style={styles.premiumTitle}>
             Unlock Smarter Studying 🚀
           </Text>
@@ -156,24 +206,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#f6f7fb", // match reviewers screen
+    backgroundColor: "#f6f7fb",
   },
-
-  greeting: {
-    fontWeight: "700",
-  },
-
-  subtitle: {
-    opacity: 0.6,
-    marginBottom: 24,
-  },
-
+  greeting: { fontWeight: "700" },
+  subtitle: { opacity: 0.6, marginBottom: 24 },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 24,
   },
-
   statCard: {
     flex: 1,
     marginHorizontal: 4,
@@ -186,29 +227,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 6,
   },
-
-  statNumber: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-
-  statLabel: {
-    opacity: 0.6,
-    marginTop: 4,
-  },
-
+  statNumber: { fontSize: 22, fontWeight: "700" },
+  statLabel: { opacity: 0.6, marginTop: 4 },
   cta: {
     borderRadius: 14,
     paddingVertical: 6,
     marginBottom: 24,
   },
-
   sectionTitle: {
     fontWeight: "700",
     marginBottom: 12,
     fontSize: 16,
   },
-
   reviewerCard: {
     marginBottom: 12,
     borderRadius: 14,
@@ -218,35 +248,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 6,
   },
-
   reviewerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
-  reviewerTitle: {
-    fontWeight: "600",
-  },
-
-  reviewerSub: {
-    opacity: 0.5,
-    fontSize: 12,
-  },
-
+  reviewerTitle: { fontWeight: "600" },
+  reviewerSub: { opacity: 0.5, fontSize: 12 },
   premiumCard: {
     marginTop: 24,
     padding: 16,
     borderRadius: 16,
     backgroundColor: "#f1f3ff",
   },
-
-  premiumTitle: {
-    fontWeight: "700",
-    marginBottom: 6,
-  },
-
-  premiumText: {
-    opacity: 0.7,
-  },
+  premiumTitle: { fontWeight: "700", marginBottom: 6 },
+  premiumText: { opacity: 0.7 },
 });

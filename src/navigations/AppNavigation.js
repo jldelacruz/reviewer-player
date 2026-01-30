@@ -5,6 +5,8 @@ import BottomTabs from './BottomTabs';
 import ReviewerDetailsScreen from '../screens/ReviewerDetailsScreen';
 import QnAScreen from "../screens/QnAScreen";
 import QuizScreen from "../screens/QuizScreen";
+import QuizSummaryScreen from "../screens/QuizSummaryScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +35,18 @@ const AppNavigation = () => {
         <Stack.Screen 
           name="Quiz" 
           component={QuizScreen}
+          options={{ headerShown: false }} 
+        />
+
+        <Stack.Screen 
+          name="QuizSummary" 
+          component={QuizSummaryScreen}
+          options={{ headerShown: false }} 
+        />
+
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen}
           options={{ headerShown: false }} 
         />
       </Stack.Navigator>

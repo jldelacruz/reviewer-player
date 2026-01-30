@@ -14,12 +14,21 @@ import {
   TextInput,
   Button,
   IconButton,
+  Icon,
 } from "react-native-paper";
+import { Swipeable } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import uuid from "react-native-uuid";
 import EmptyQnA from "../components/EmptyQnA";
+
+/* =====================
+   🔑 SETTINGS KEYS
+   ===================== */
+const SETTINGS_KEYS = {
+  HAPTICS: "haptics_enabled",
+};
 
 export default function QnAScreen({ route, navigation }) {
   const { reviewer } = route.params;
@@ -30,15 +39,46 @@ export default function QnAScreen({ route, navigation }) {
   const [editingQna, setEditingQna] = useState(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
+  /* =====================
+     🔄 LOAD DATA + SETTINGS
+     ===================== */
   useEffect(() => {
     loadQnA();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    const value = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
+    if (value !== null) {
+      setHapticsEnabled(value === "true");
+    }
+  };
+
+  /* =====================
+     📳 HAPTIC HELPER
+     ===================== */
+  const triggerHaptic = async (type = "light") => {
+    if (!hapticsEnabled) return;
+
+    switch (type) {
+      case "medium":
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        break;
+      case "warning":
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Warning
+        );
+        break;
+      default:
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
 
   /* =====================
      📥 LOAD / SAVE
      ===================== */
-
   const loadQnA = async () => {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     if (stored) setQnas(JSON.parse(stored));
@@ -52,15 +92,16 @@ export default function QnAScreen({ route, navigation }) {
   /* =====================
      ➕ ADD / ✏️ EDIT
      ===================== */
-
-  const openAddModal = () => {
+  const openAddModal = async () => {
+    await triggerHaptic("light");
     setEditingQna(null);
     setQuestion("");
     setAnswer("");
     setModalVisible(true);
   };
 
-  const openEditModal = (item) => {
+  const openEditModal = async (item) => {
+    await triggerHaptic("light");
     setEditingQna(item);
     setQuestion(item.question);
     setAnswer(item.answer);
@@ -70,15 +111,12 @@ export default function QnAScreen({ route, navigation }) {
   const saveQnAItem = async () => {
     if (!question.trim() || !answer.trim()) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await triggerHaptic("medium");
 
     let updated;
-
     if (editingQna) {
       updated = qnas.map((q) =>
-        q.id === editingQna.id
-          ? { ...q, question, answer }
-          : q
+        q.id === editingQna.id ? { ...q, question, answer } : q
       );
     } else {
       updated = [
@@ -98,68 +136,68 @@ export default function QnAScreen({ route, navigation }) {
   /* =====================
      🗑️ DELETE
      ===================== */
-
   const deleteQnA = (id) => {
-    Alert.alert(
-      "Delete Q&A",
-      "Are you sure you want to delete this item?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Warning
-            );
-            const updated = qnas.filter((q) => q.id !== id);
-            await saveQnA(updated);
-          },
+    Alert.alert("Delete Q&A", "Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await triggerHaptic("warning");
+          await saveQnA(qnas.filter((q) => q.id !== id));
         },
-      ]
-    );
+      },
+    ]);
   };
 
   /* =====================
-     🎴 RENDER ITEM
+     👉 SWIPE ACTIONS
      ===================== */
+  const renderRightActions = (item) => (
+    <View style={styles.swipeActions}>
+      <IconButton
+        icon="pencil"
+        iconColor="#1976d2"
+        onPress={() => openEditModal(item)}
+      />
+      <IconButton
+        icon="delete"
+        iconColor="#d32f2f"
+        onPress={() => deleteQnA(item.id)}
+      />
+    </View>
+  );
 
   const renderItem = ({ item }) => (
-    <Card style={styles.card}>
-      <Card.Content>
-        {/* ACTION ICONS */}
-        <View style={styles.cardActions}>
-          <IconButton
-            icon="pencil"
-            size={20}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              openEditModal(item);
-            }}
-          />
-          <IconButton
-            icon="delete"
-            size={20}
-            iconColor="#e53935"
-            onPress={() => deleteQnA(item.id)}
-          />
-        </View>
+    <Swipeable
+      renderRightActions={() => renderRightActions(item)}
+      overshootRight={false}
+      containerStyle={{ overflow: "visible" }}
+    >
+      <View style={styles.cardWrapper}>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.row}>
+              <View style={styles.iconWrap}>
+                <Icon source="help-circle" size={20} color="#4A90E2" />
+              </View>
+              <Text style={styles.question}>{item.question}</Text>
+            </View>
 
-        <View style={styles.row}>
-          <IconButton icon="help-circle-outline" size={20} />
-          <Text style={styles.question}>{item.question}</Text>
-        </View>
-
-        <View style={styles.row}>
-          <IconButton icon="check-circle-outline" size={20} />
-          <Text style={styles.answer}>{item.answer}</Text>
-        </View>
-      </Card.Content>
-    </Card>
+            <View style={styles.row}>
+              <View style={styles.iconWrap}>
+                <Icon source="check-circle" size={20} color="#46923c" />
+              </View>
+              <Text style={styles.answer}>{item.answer}</Text>
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+    </Swipeable>
   );
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
@@ -174,23 +212,21 @@ export default function QnAScreen({ route, navigation }) {
           data={qnas}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+          contentContainerStyle={{ paddingBottom: 140, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={<EmptyQnA onPress={openAddModal} />}
         />
 
         {/* FAB */}
-        { qnas.count > 0 ? (
+        {qnas.length > 0 && (
           <FAB
             icon="plus"
             style={styles.fab}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              openAddModal();
-            }}
+            onPress={openAddModal}
+            backgroundColor="#4A90E2"
+            color="#FFF"
           />
-          ) : null
-        }
-
+        )}
 
         {/* MODAL */}
         <Modal transparent visible={modalVisible} animationType="fade">
@@ -198,7 +234,6 @@ export default function QnAScreen({ route, navigation }) {
             style={styles.overlay}
             onPress={() => setModalVisible(false)}
           />
-
           <View style={styles.modal}>
             <Text variant="titleLarge" style={styles.modalTitle}>
               {editingQna ? "Edit Q&A" : "Add Q&A"}
@@ -210,8 +245,7 @@ export default function QnAScreen({ route, navigation }) {
               value={question}
               onChangeText={setQuestion}
               multiline
-              numberOfLines={4}
-              style={{ marginBottom: 12, minHeight: 100 }}
+              style={{ marginBottom: 12, minHeight: 90 }}
             />
 
             <TextInput
@@ -220,19 +254,16 @@ export default function QnAScreen({ route, navigation }) {
               value={answer}
               onChangeText={setAnswer}
               multiline
-              numberOfLines={4}
-              style={{ marginBottom: 12, minHeight: 100 }}
+              style={{ marginBottom: 12, minHeight: 90 }}
             />
 
-            <Button
-              mode="contained"
-              onPress={saveQnAItem}
-              style={{ marginTop: 16 }}
-            >
+            <Button mode="contained" onPress={saveQnAItem}>
               Save
             </Button>
-
-            <Button mode="text" onPress={() => setModalVisible(false)}>
+            <Button mode="text" onPress={async () => {
+              await triggerHaptic();
+              setModalVisible(false);
+            }}>
               Cancel
             </Button>
           </View>
@@ -245,70 +276,69 @@ export default function QnAScreen({ route, navigation }) {
 /* =====================
    🎨 STYLES
    ===================== */
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#f6f7fb",
+    backgroundColor: "#FFF",
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    paddingHorizontal: 16,
   },
-
   headerText: {
     fontWeight: "700",
   },
-
-  card: {
+  cardWrapper: {
+    paddingHorizontal: 16,
     marginBottom: 12,
-    borderRadius: 12,
+    overflow: "visible",
   },
-
-  cardActions: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    flexDirection: "row",
+  card: {
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
+    marginTop: 10,
   },
-
+  iconWrap: {
+    width: 32,
+    alignItems: "center",
+  },
   question: {
-    fontWeight: "600",
     flex: 1,
-    marginTop: 6,
+    fontWeight: "600",
+    lineHeight: 20,
+    fontWeight: 700
   },
-
   answer: {
     flex: 1,
-    marginTop: 6,
     opacity: 0.7,
+    lineHeight: 20,
   },
-
-  empty: {
-    textAlign: "center",
-    marginTop: 40,
-    opacity: 0.5,
+  swipeActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 12,
+    backgroundColor: "#f6f7fb",
+    borderRadius: 14,
   },
-
   fab: {
     position: "absolute",
     right: 24,
     bottom: 24,
   },
-
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
   },
-
   modal: {
     position: "absolute",
     left: 20,
@@ -318,7 +348,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
   },
-
   modalTitle: {
     marginBottom: 12,
     fontWeight: "700",

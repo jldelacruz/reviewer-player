@@ -1,15 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, StyleSheet, Pressable } from "react-native";
 import {
   Text,
-  Card,
   Button,
   ProgressBar,
   IconButton,
+  Icon,
 } from "react-native-paper";
 import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const SETTINGS_KEYS = {
+  HAPTICS: "haptics_enabled",
+};
 
 export default function QuizScreen({ route, navigation }) {
   const { reviewer } = route.params;
@@ -22,10 +27,85 @@ export default function QuizScreen({ route, navigation }) {
   const [selected, setSelected] = useState(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [choices, setChoices] = useState([]);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
+  // 🔊 sound refs
+  const correctSound = useRef(null);
+  const wrongSound = useRef(null);
+
+  /* =====================
+     🔄 INIT
+     ===================== */
   useEffect(() => {
     loadQuestions();
+    loadSounds();
+    loadHapticsSetting();
+
+    return () => {
+      unloadSounds();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!current) return;
+
+    const correct = current.answer;
+    const others = questions
+      .filter((q) => q.answer !== correct)
+      .map((q) => q.answer)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+
+    const shuffled = [...others, correct].sort(() => Math.random() - 0.5);
+    setChoices(shuffled);
+  }, [currentIndex, questions]);
+
+  /* =====================
+     ⚙️ SETTINGS
+     ===================== */
+  const loadHapticsSetting = async () => {
+    const saved = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
+    setHapticsEnabled(saved !== "false"); // default ON
+  };
+
+  const hapticImpact = async (style) => {
+    if (!hapticsEnabled) return;
+    await Haptics.impactAsync(style);
+  };
+
+  const hapticNotify = async (type) => {
+    if (!hapticsEnabled) return;
+    await Haptics.notificationAsync(type);
+  };
+
+  /* =====================
+     🔊 LOAD / UNLOAD SOUNDS
+     ===================== */
+  const loadSounds = async () => {
+    const correct = await Audio.Sound.createAsync(
+      require("../assets/sounds/correct.mp3")
+    );
+    const wrong = await Audio.Sound.createAsync(
+      require("../assets/sounds/wrong.mp3")
+    );
+
+    correctSound.current = correct.sound;
+    wrongSound.current = wrong.sound;
+  };
+
+  const unloadSounds = async () => {
+    if (correctSound.current) await correctSound.current.unloadAsync();
+    if (wrongSound.current) await wrongSound.current.unloadAsync();
+  };
+
+  /* =====================
+     📦 DATA
+     ===================== */
+  const markLastStudied = async (reviewerId) => {
+    const key = `reviewer_${reviewerId}_last_studied`;
+    await AsyncStorage.setItem(key, Date.now().toString());
+  };
 
   const loadQuestions = async () => {
     const saved = await AsyncStorage.getItem(QA_KEY);
@@ -39,45 +119,33 @@ export default function QuizScreen({ route, navigation }) {
   const current = questions[currentIndex];
   const progress = (currentIndex + 1) / questions.length;
 
-  const generateChoices = () => {
-    if (!current) return [];
-
-    const correct = current.answer;
-    const others = questions
-      .filter((q) => q.answer !== correct)
-      .map((q) => q.answer)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3);
-
-    return [...others, correct].sort(() => Math.random() - 0.5);
-  };
-
-  const choices = generateChoices();
-
+  /* =====================
+     ✅ ANSWER SELECT
+     ===================== */
   const selectAnswer = async (choice) => {
     if (showAnswer) return;
 
     setSelected(choice);
 
-    // ⏱ tiny delay = intentional UX
-    setTimeout(() => {
+    setTimeout(async () => {
       setShowAnswer(true);
 
       if (choice === current.answer) {
-        Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
-        );
+        await correctSound.current?.replayAsync();
+        await hapticNotify(Haptics.NotificationFeedbackType.Success);
         setCorrectCount((prev) => prev + 1);
       } else {
-        Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Error
-        );
+        await wrongSound.current?.replayAsync();
+        await hapticNotify(Haptics.NotificationFeedbackType.Error);
       }
-    }, 200);
+    }, 150);
   };
 
+  /* =====================
+     ➡️ NEXT
+     ===================== */
   const nextQuestion = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
 
     setSelected(null);
     setShowAnswer(false);
@@ -91,11 +159,13 @@ export default function QuizScreen({ route, navigation }) {
         })
       );
 
-      await Haptics.notificationAsync(
-        Haptics.NotificationFeedbackType.Success
-      );
+      await markLastStudied(reviewer.id);
 
-      navigation.goBack();
+      navigation.replace("QuizSummary", {
+        correct: correctCount,
+        total: questions.length,
+        reviewer,
+      });
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
@@ -114,56 +184,57 @@ export default function QuizScreen({ route, navigation }) {
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
-          <IconButton icon="close" onPress={() => navigation.goBack()} />
-          <View style={{ flex: 1 }}>
-            <ProgressBar progress={progress} style={styles.progress} />
-            <Text style={styles.progressText}>
-              {currentIndex + 1} / {questions.length}
-            </Text>
-          </View>
+          <IconButton
+            icon="arrow-left"
+            onPress={async () => {
+              await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+              navigation.goBack();
+            }}
+          />
+          <Text variant="headlineSmall" style={styles.title}>
+            {reviewer.title}
+          </Text>
         </View>
 
+        {/* PROGRESS */}
+        <ProgressBar progress={progress} style={styles.progress} />
+        <Text style={styles.progressText}>
+          Question {currentIndex + 1} of {questions.length}
+        </Text>
+
         {/* QUESTION */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.questionLabel}>Question</Text>
-            <Text style={styles.question}>{current.question}</Text>
-          </Card.Content>
-        </Card>
+        <Text style={styles.question}>{current.question}</Text>
 
         {/* OPTIONS */}
         <View style={styles.options}>
-          {choices.map((choice, index) => {
+          {choices.map((choice) => {
             const isCorrect = choice === current.answer;
             const isSelected = choice === selected;
 
-            let mode = "outlined";
-            let icon = "circle-outline";
-
-            if (showAnswer) {
-              if (isCorrect) {
-                mode = "contained";
-                icon = "check-circle";
-              } else if (isSelected) {
-                mode = "contained";
-                icon = "close-circle";
-              }
-            }
+            const optionStyle = [
+              styles.option,
+              isSelected && !showAnswer && styles.selected,
+              showAnswer && isCorrect && styles.correct,
+              showAnswer && isSelected && !isCorrect && styles.wrong,
+            ];
 
             return (
-              <Button
-                key={index}
-                mode={mode}
-                icon={icon}
+              <Pressable
+                key={choice}
                 onPress={() => selectAnswer(choice)}
-                style={[
-                  styles.option,
-                  showAnswer && isCorrect && styles.correct,
-                  showAnswer && isSelected && !isCorrect && styles.wrong,
-                ]}
+                style={optionStyle}
               >
-                {choice}
-              </Button>
+                <View style={styles.optionContent}>
+                  <Text style={styles.optionText}>{choice}</Text>
+
+                  {showAnswer && isCorrect && (
+                    <Icon source="check-circle" size={22} color="#2e7d32" />
+                  )}
+                  {showAnswer && isSelected && !isCorrect && (
+                    <Icon source="close-circle" size={22} color="#d32f2f" />
+                  )}
+                </View>
+              </Pressable>
             );
           })}
         </View>
@@ -172,13 +243,11 @@ export default function QuizScreen({ route, navigation }) {
         {showAnswer && (
           <Button
             mode="contained"
-            icon="arrow-right"
             onPress={nextQuestion}
             style={styles.nextBtn}
+            contentStyle={{ paddingVertical: 10 }}
           >
-            {currentIndex + 1 === questions.length
-              ? "Finish Quiz"
-              : "Next"}
+            {currentIndex + 1 === questions.length ? "Finish" : "Next"}
           </Button>
         )}
       </View>
@@ -189,11 +258,11 @@ export default function QuizScreen({ route, navigation }) {
 /* =====================
    🎨 STYLES
    ===================== */
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: "#FFF",
   },
 
   center: {
@@ -206,59 +275,73 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+
+  title: {
+    fontWeight: "700",
   },
 
   progress: {
-    height: 8,
+    height: 6,
     borderRadius: 6,
   },
 
   progressText: {
     fontSize: 12,
     opacity: 0.5,
-    marginTop: 4,
-    textAlign: "right",
-  },
-
-  card: {
-    marginTop: 16,
-    borderRadius: 18,
-    paddingVertical: 8,
-  },
-
-  questionLabel: {
-    opacity: 0.5,
-    marginBottom: 6,
+    marginTop: 6,
   },
 
   question: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
-    lineHeight: 28,
+    lineHeight: 30,
+    marginTop: 20,
   },
 
   options: {
-    marginTop: 28,
+    marginTop: 24,
     gap: 12,
   },
 
   option: {
     borderRadius: 14,
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+
+  optionContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  optionText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+
+  selected: {
+    borderColor: "#7C3AED",
+    backgroundColor: "#F5F3FF",
   },
 
   correct: {
+    borderColor: "#2e7d32",
     backgroundColor: "#E8F5E9",
   },
 
   wrong: {
+    borderColor: "#d32f2f",
     backgroundColor: "#FDECEA",
   },
 
   nextBtn: {
     marginTop: 28,
     borderRadius: 16,
-    paddingVertical: 6,
   },
 });
