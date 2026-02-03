@@ -19,7 +19,7 @@ const SETTINGS_KEYS = {
   TTS_RATE: "tts_rate",
 };
 
-export default function ReviewerDetailsScreen({ route, navigation }) {
+export default function ReviewerPlayerScreen({ route, navigation }) {
   const { reviewer } = route.params;
 
   const [qnas, setQnas] = useState([]);

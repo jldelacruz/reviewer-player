@@ -163,7 +163,7 @@ export default function HomeScreen({ navigation }) {
             navigation.navigate("Reviewers");
           }}
         >
-          Start Reviewing
+          {reviewers.length > 0 ? 'Start Reviewing' : 'Create Your First Reviewer'} 
         </Button>
 
         {/* RECENT */}

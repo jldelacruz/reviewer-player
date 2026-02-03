@@ -35,7 +35,6 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        padding: 24,
     },
     emptySub: {
         opacity: 0.6,

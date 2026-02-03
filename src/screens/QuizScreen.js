@@ -12,8 +12,12 @@ import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import EmptyQnA from "../components/EmptyQnA";
+import { parse } from "react-native-svg";
+
 const SETTINGS_KEYS = {
   HAPTICS: "haptics_enabled",
+  SHUFFLE: "quiz_shuffle", // 🔄 SHUFFLE
 };
 
 export default function QuizScreen({ route, navigation }) {
@@ -28,24 +32,79 @@ export default function QuizScreen({ route, navigation }) {
   const [correctCount, setCorrectCount] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [choices, setChoices] = useState([]);
-  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
-  // 🔊 sound refs
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [shuffleEnabled, setShuffleEnabled] = useState(true); // 🔄 SHUFFLE
+
   const correctSound = useRef(null);
   const wrongSound = useRef(null);
 
   /* =====================
-     🔄 INIT
+     INIT
      ===================== */
   useEffect(() => {
-    loadQuestions();
+    loadSettings();
     loadSounds();
-    loadHapticsSetting();
 
     return () => {
       unloadSounds();
     };
   }, []);
+
+  /* =====================
+     LOAD SETTINGS
+     ===================== */
+  const loadSettings = async () => {
+    const values = await AsyncStorage.multiGet([
+      SETTINGS_KEYS.HAPTICS,
+      SETTINGS_KEYS.SHUFFLE,
+    ]);
+
+    let haptics = true;
+    let shuffle = true;
+
+    values.forEach(([key, value]) => {
+      if (value === null) return;
+
+      if (key === SETTINGS_KEYS.HAPTICS) {
+        haptics = value !== "false";
+        setHapticsEnabled(haptics);
+      }
+
+      if (key === SETTINGS_KEYS.SHUFFLE) {
+        shuffle = value !== "false";
+        setShuffleEnabled(shuffle);
+      }
+    });
+
+    // 🔥 PASS THE ACTUAL VALUE
+    await loadQuestions(shuffle);
+  };
+
+
+  /* =====================
+     LOAD QUESTIONS
+     ===================== */
+  const loadQuestions = async (shouldShuffle) => {
+    const saved = await AsyncStorage.getItem(QA_KEY);
+    if (!saved) {
+      setQuestions([]);
+      return;
+    }
+
+    let parsed = JSON.parse(saved);
+
+    if (shouldShuffle) {
+      parsed = [...parsed].sort(() => Math.random() - 0.5);
+    }
+
+    setQuestions(parsed);
+  };
+
+  /* =====================
+     BUILD CHOICES
+     ===================== */
+  const current = questions[currentIndex];
 
   useEffect(() => {
     if (!current) return;
@@ -57,18 +116,17 @@ export default function QuizScreen({ route, navigation }) {
       .sort(() => Math.random() - 0.5)
       .slice(0, 3);
 
-    const shuffled = [...others, correct].sort(() => Math.random() - 0.5);
-    setChoices(shuffled);
+    setChoices([...others, correct].sort(() => Math.random() - 0.5));
   }, [currentIndex, questions]);
 
-  /* =====================
-     ⚙️ SETTINGS
-     ===================== */
-  const loadHapticsSetting = async () => {
-    const saved = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
-    setHapticsEnabled(saved !== "false"); // default ON
-  };
+  const progress =
+    questions.length > 0
+      ? (currentIndex + 1) / questions.length
+      : 0;
 
+  /* =====================
+     HAPTICS
+     ===================== */
   const hapticImpact = async (style) => {
     if (!hapticsEnabled) return;
     await Haptics.impactAsync(style);
@@ -80,7 +138,7 @@ export default function QuizScreen({ route, navigation }) {
   };
 
   /* =====================
-     🔊 LOAD / UNLOAD SOUNDS
+     SOUNDS
      ===================== */
   const loadSounds = async () => {
     const correct = await Audio.Sound.createAsync(
@@ -100,49 +158,26 @@ export default function QuizScreen({ route, navigation }) {
   };
 
   /* =====================
-     📦 DATA
-     ===================== */
-  const markLastStudied = async (reviewerId) => {
-    const key = `reviewer_${reviewerId}_last_studied`;
-    await AsyncStorage.setItem(key, Date.now().toString());
-  };
-
-  const loadQuestions = async () => {
-    const saved = await AsyncStorage.getItem(QA_KEY);
-    if (!saved) return;
-
-    const parsed = JSON.parse(saved);
-    const shuffled = [...parsed].sort(() => Math.random() - 0.5);
-    setQuestions(shuffled);
-  };
-
-  const current = questions[currentIndex];
-  const progress = (currentIndex + 1) / questions.length;
-
-  /* =====================
-     ✅ ANSWER SELECT
+     ANSWER SELECT
      ===================== */
   const selectAnswer = async (choice) => {
     if (showAnswer) return;
 
     setSelected(choice);
+    setShowAnswer(true);
 
-    setTimeout(async () => {
-      setShowAnswer(true);
-
-      if (choice === current.answer) {
-        await correctSound.current?.replayAsync();
-        await hapticNotify(Haptics.NotificationFeedbackType.Success);
-        setCorrectCount((prev) => prev + 1);
-      } else {
-        await wrongSound.current?.replayAsync();
-        await hapticNotify(Haptics.NotificationFeedbackType.Error);
-      }
-    }, 150);
+    if (choice === current.answer) {
+      await correctSound.current?.replayAsync();
+      await hapticNotify(Haptics.NotificationFeedbackType.Success);
+      setCorrectCount((prev) => prev + 1);
+    } else {
+      await wrongSound.current?.replayAsync();
+      await hapticNotify(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   /* =====================
-     ➡️ NEXT
+     NEXT
      ===================== */
   const nextQuestion = async () => {
     await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
@@ -159,7 +194,10 @@ export default function QuizScreen({ route, navigation }) {
         })
       );
 
-      await markLastStudied(reviewer.id);
+      await AsyncStorage.setItem(
+        `reviewer_${reviewer.id}_last_studied`,
+        Date.now().toString()
+      );
 
       navigation.replace("QuizSummary", {
         correct: correctCount,
@@ -171,17 +209,10 @@ export default function QuizScreen({ route, navigation }) {
     }
   };
 
-  if (!current) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <Text>No questions available.</Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
+        <Text>{shuffleEnabled ? 'yes' : 'no'}</Text>
         {/* HEADER */}
         <View style={styles.header}>
           <IconButton
@@ -192,63 +223,66 @@ export default function QuizScreen({ route, navigation }) {
             }}
           />
           <Text variant="headlineSmall" style={styles.title}>
-            {reviewer.title}
+            {reviewer.title} Quiz
           </Text>
         </View>
 
-        {/* PROGRESS */}
-        <ProgressBar progress={progress} style={styles.progress} />
-        <Text style={styles.progressText}>
-          Question {currentIndex + 1} of {questions.length}
-        </Text>
+        {questions.length === 0 && <EmptyQnA onPress={() => {}} />}
 
-        {/* QUESTION */}
-        <Text style={styles.question}>{current.question}</Text>
+        {questions.length > 0 && (
+          <>
+            <ProgressBar progress={progress} style={styles.progress} />
+            <Text style={styles.progressText}>
+              Question {currentIndex + 1} of {questions.length}
+            </Text>
 
-        {/* OPTIONS */}
-        <View style={styles.options}>
-          {choices.map((choice) => {
-            const isCorrect = choice === current.answer;
-            const isSelected = choice === selected;
+            <Text style={styles.question}>{current.question}</Text>
 
-            const optionStyle = [
-              styles.option,
-              isSelected && !showAnswer && styles.selected,
-              showAnswer && isCorrect && styles.correct,
-              showAnswer && isSelected && !isCorrect && styles.wrong,
-            ];
+            <View style={styles.options}>
+              {choices.map((choice) => {
+                const isCorrect = choice === current.answer;
+                const isSelected = choice === selected;
 
-            return (
-              <Pressable
-                key={choice}
-                onPress={() => selectAnswer(choice)}
-                style={optionStyle}
+                return (
+                  <Pressable
+                    key={choice}
+                    onPress={() => selectAnswer(choice)}
+                    style={[
+                      styles.option,
+                      isSelected && !showAnswer && styles.selected,
+                      showAnswer && isCorrect && styles.correct,
+                      showAnswer &&
+                        isSelected &&
+                        !isCorrect &&
+                        styles.wrong,
+                    ]}
+                  >
+                    <View style={styles.optionContent}>
+                      <Text style={styles.optionText}>{choice}</Text>
+
+                      {showAnswer && isCorrect && (
+                        <Icon source="check-circle" size={22} color="#2e7d32" />
+                      )}
+                      {showAnswer && isSelected && !isCorrect && (
+                        <Icon source="close-circle" size={22} color="#d32f2f" />
+                      )}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {showAnswer && (
+              <Button
+                mode="contained"
+                onPress={nextQuestion}
+                style={styles.nextBtn}
+                contentStyle={{ paddingVertical: 10 }}
               >
-                <View style={styles.optionContent}>
-                  <Text style={styles.optionText}>{choice}</Text>
-
-                  {showAnswer && isCorrect && (
-                    <Icon source="check-circle" size={22} color="#2e7d32" />
-                  )}
-                  {showAnswer && isSelected && !isCorrect && (
-                    <Icon source="close-circle" size={22} color="#d32f2f" />
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* NEXT */}
-        {showAnswer && (
-          <Button
-            mode="contained"
-            onPress={nextQuestion}
-            style={styles.nextBtn}
-            contentStyle={{ paddingVertical: 10 }}
-          >
-            {currentIndex + 1 === questions.length ? "Finish" : "Next"}
-          </Button>
+                {currentIndex + 1 === questions.length ? "Finish" : "Next"}
+              </Button>
+            )}
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -256,19 +290,13 @@ export default function QuizScreen({ route, navigation }) {
 }
 
 /* =====================
-   🎨 STYLES
+   STYLES
    ===================== */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 20,
     backgroundColor: "#FFF",
-  },
-
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   header: {

@@ -256,12 +256,18 @@ export default function ReviewersScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
       <View style={styles.container}>
+        <View style={styles.header}>
+          <Text variant="headlineSmall" style={styles.title}>
+            Reviewers
+          </Text>
+          <View style={{ width: 48 }} />
+        </View>
         <FlatList
           data={reviewers}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{
-            paddingHorizontal: 16,
+            paddingHorizontal: 1,
             paddingBottom: 120,
             flexGrow: 1,
           }}
@@ -317,7 +323,7 @@ export default function ReviewersScreen({ navigation }) {
    🎨 STYLES
    ===================== */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f6f7fb" },
+  container: { flex: 1, backgroundColor: "#FFF",  padding: 20 },
   swipeContainer: { overflow: "visible" },
   cardWrapper: { marginBottom: 12, overflow: "visible" },
   card: {
@@ -350,4 +356,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: { marginBottom: 12, fontWeight: "700" },
   lastStudiedText: { marginTop: 2, fontSize: 12, opacity: 0.5 },
+  title: {
+    fontWeight: "700",
+    textAlign: "center",
+  },
 });
