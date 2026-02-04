@@ -6,6 +6,7 @@ import ReviewerPlayerScreen from '../screens/ReviewerPlayerScreen';
 import QnAScreen from "../screens/QnAScreen";
 import QuizScreen from "../screens/QuizScreen";
 import QuizSummaryScreen from "../screens/QuizSummaryScreen";
+import QuizStartScreen from "../screens/QuizStartScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
@@ -35,6 +36,12 @@ const AppNavigation = () => {
         <Stack.Screen 
           name="Quiz" 
           component={QuizScreen}
+          options={{ headerShown: false }} 
+        />
+
+        <Stack.Screen 
+          name="QuizStart" 
+          component={QuizStartScreen}
           options={{ headerShown: false }} 
         />
 

@@ -97,7 +97,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
   };
 
   /* =========================
-     🔊 TTS PLAYLIST MODE
+     🔊 TTS
      ========================= */
   const playAll = () => {
     if (!ttsEnabled || currentIndexRef.current >= qnas.length) {
@@ -123,7 +123,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
             const nextIndex = currentIndexRef.current + 1;
 
             if (nextIndex >= qnas.length) {
-              stopTTS(); // ⛔ stop at last item
+              stopTTS();
               return;
             }
 
@@ -152,6 +152,24 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     } else {
       setIsPlaying(true);
       playAll();
+    }
+  };
+
+  /* =========================
+     🔘 TTS TOGGLE BUTTON
+     ========================= */
+  const toggleTTS = async () => {
+    await impact();
+
+    const newValue = !ttsEnabled;
+    setTtsEnabled(newValue);
+    await AsyncStorage.setItem(
+      SETTINGS_KEYS.TTS_ENABLED,
+      String(newValue)
+    );
+
+    if (!newValue) {
+      stopTTS();
     }
   };
 
@@ -197,10 +215,20 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
               navigation.goBack();
             }}
           />
-          <Text variant="headlineSmall" style={styles.title}>
+
+          <Text
+            variant="headlineSmall"
+            style={styles.title}
+            numberOfLines={1}
+          >
             {reviewer.title}
           </Text>
-          <View style={{ width: 48 }} />
+
+          <IconButton
+            icon={ttsEnabled ? "volume-high" : "volume-off"}
+            onPress={toggleTTS}
+            iconColor={ttsEnabled ? "#4A90E2" : "#A1A1AA"}
+          />
         </View>
 
         {/* QNA CARD */}
@@ -268,7 +296,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
             icon="clipboard-check-outline"
             onPress={() => {
               impact();
-              navigation.navigate("Quiz", { reviewer });
+              navigation.navigate("QuizStart", { reviewer });
             }}
           >
             Take Quiz
@@ -304,10 +332,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    height: 56,
   },
 
   title: {
+    flex: 1,
     fontWeight: "700",
     textAlign: "center",
   },

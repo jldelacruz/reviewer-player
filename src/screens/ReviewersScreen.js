@@ -224,20 +224,24 @@ export default function ReviewersScreen({ navigation }) {
             navigation.navigate("ReviewerDetails", { reviewer: item });
           }}
         >
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              {item.title}
-            </Text>
-
-            <Text style={styles.countText}>
-              {item.count} Q&A
-            </Text>
-
-            {item.lastStudied && (
-              <Text style={styles.lastStudiedText}>
-                {formatLastStudied(item.lastStudied)}
+          <Card.Content style={styles.reviewerContent}>
+            <View>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                {item.title}
               </Text>
-            )}
+
+              <Text style={styles.countText}>
+                {item.count} Q&A
+              </Text>
+
+              {item.lastStudied && (
+                <Text style={styles.lastStudiedText}>
+                  {formatLastStudied(item.lastStudied)}
+                </Text>
+              )}
+            </View>
+            
+            <IconButton icon="chevron-right" />
           </Card.Content>
         </Card>
       </View>
@@ -258,9 +262,8 @@ export default function ReviewersScreen({ navigation }) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text variant="headlineSmall" style={styles.title}>
-            Reviewers
+            My Reviewers
           </Text>
-          <View style={{ width: 48 }} />
         </View>
         <FlatList
           data={reviewers}
@@ -270,6 +273,7 @@ export default function ReviewersScreen({ navigation }) {
             paddingHorizontal: 1,
             paddingBottom: 120,
             flexGrow: 1,
+            marginTop: 24,
           }}
           ListEmptyComponent={
             <EmptyReviewers onPress={openCreateModal} />
@@ -357,7 +361,18 @@ const styles = StyleSheet.create({
   modalTitle: { marginBottom: 12, fontWeight: "700" },
   lastStudiedText: { marginTop: 2, fontSize: 12, opacity: 0.5 },
   title: {
+    flex: 1,
     fontWeight: "700",
     textAlign: "center",
+  },
+  reviewerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 56,
   },
 });
