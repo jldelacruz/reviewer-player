@@ -1,11 +1,27 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { Text, Button, Card, Icon } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const HAPTICS_KEY = "haptics_enabled";
 
 export default function QuizSummaryScreen({ route, navigation }) {
   const { correct, total, reviewer } = route.params;
+
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+
+  useEffect(() => {
+    loadHapticsSetting();
+  }, []);
+
+  const loadHapticsSetting = async () => {
+    const value = await AsyncStorage.getItem(HAPTICS_KEY);
+    if (value !== null) {
+      setHapticsEnabled(value === "true");
+    }
+  };
 
   const rawPercentage = correct / total;
   const percentage = Math.round(rawPercentage * 100);
@@ -16,19 +32,22 @@ export default function QuizSummaryScreen({ route, navigation }) {
       : rawPercentage >= 0.7;
 
   const handleRetry = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (hapticsEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     navigation.replace("Quiz", { reviewer });
   };
 
   const handleDone = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (hapticsEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     navigation.goBack();
   };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
-        {/* RESULT ICON */}
         <View
           style={[
             styles.iconWrap,
@@ -42,7 +61,6 @@ export default function QuizSummaryScreen({ route, navigation }) {
           />
         </View>
 
-        {/* RESULT TEXT */}
         <Text style={styles.title}>
           {passed ? "You Passed 🎉" : "You Failed"}
         </Text>
@@ -53,7 +71,6 @@ export default function QuizSummaryScreen({ route, navigation }) {
             : "Don’t worry — review and try again."}
         </Text>
 
-        {/* SCORE CARD */}
         <Card style={styles.scoreCard}>
           <Card.Content style={styles.scoreContent}>
             <View style={styles.scoreBlock}>
@@ -77,11 +94,10 @@ export default function QuizSummaryScreen({ route, navigation }) {
           </Card.Content>
         </Card>
 
-        {/* ACTIONS */}
         <View style={styles.actions}>
           {!passed && (
             <Button
-              icon='refresh'
+              icon="refresh"
               mode="outlined"
               onPress={handleRetry}
               style={styles.retryBtn}
@@ -91,7 +107,7 @@ export default function QuizSummaryScreen({ route, navigation }) {
           )}
 
           <Button
-            icon='check'
+            icon="check"
             mode="contained"
             onPress={handleDone}
             style={styles.doneBtn}
