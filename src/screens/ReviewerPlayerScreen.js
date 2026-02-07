@@ -40,9 +40,9 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     useCallback(() => {
       loadSettings();
       loadQnA();
-      stopTTS();
+      stopTTS(true);
 
-      return () => stopTTS();
+      return () => stopTTS(true);
     }, [])
   );
 
@@ -69,9 +69,11 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
 
       if (key === SETTINGS_KEYS.TTS_RATE) {
         setTtsRate(
-          value === "slow" ? 0.8 :
-          value === "fast" ? 1.2 :
-          1.0
+          value === "slow"
+            ? 0.8
+            : value === "fast"
+            ? 1.2
+            : 1.0
         );
       }
     });
@@ -97,11 +99,19 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
   };
 
   /* =========================
+     🔁 RESET
+     ========================= */
+  const resetToStart = () => {
+    currentIndexRef.current = 0;
+    setCurrentIndex(0);
+  };
+
+  /* =========================
      🔊 TTS
      ========================= */
   const playAll = () => {
     if (!ttsEnabled || currentIndexRef.current >= qnas.length) {
-      stopTTS();
+      stopTTS(true);
       return;
     }
 
@@ -122,8 +132,9 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
 
             const nextIndex = currentIndexRef.current + 1;
 
+            // ✅ FINISHED PLAYING ALL
             if (nextIndex >= qnas.length) {
-              stopTTS();
+              stopTTS(true);
               return;
             }
 
@@ -136,10 +147,14 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     });
   };
 
-  const stopTTS = () => {
+  const stopTTS = (reset = false) => {
     isPlayingRef.current = false;
     Speech.stop();
     setIsPlaying(false);
+
+    if (reset) {
+      resetToStart();
+    }
   };
 
   const togglePlay = async () => {
@@ -148,7 +163,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     if (!ttsEnabled || qnas.length === 0) return;
 
     if (isPlaying) {
-      stopTTS();
+      stopTTS(false);
     } else {
       setIsPlaying(true);
       playAll();
@@ -156,7 +171,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
   };
 
   /* =========================
-     🔘 TTS TOGGLE BUTTON
+     🔘 TTS TOGGLE
      ========================= */
   const toggleTTS = async () => {
     await impact();
@@ -169,7 +184,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     );
 
     if (!newValue) {
-      stopTTS();
+      stopTTS(false);
     }
   };
 
@@ -201,7 +216,9 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
 
   const current = qnas[currentIndex];
   const progress =
-    qnas.length > 0 ? (currentIndex + 1) / qnas.length : 0;
+    qnas.length > 0
+      ? (currentIndex + 1) / qnas.length
+      : 0;
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -294,6 +311,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
           <Button
             mode="contained"
             icon="clipboard-check-outline"
+            disabled={qnas.length === 0}
             onPress={() => {
               impact();
               navigation.navigate("QuizStart", { reviewer });
@@ -328,62 +346,52 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#FFF",
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
     height: 56,
   },
-
   title: {
     flex: 1,
     fontWeight: "700",
     textAlign: "center",
   },
-
   card: {
     marginTop: 24,
     borderRadius: 20,
     elevation: 4,
   },
-
   label: {
     fontSize: 12,
     opacity: 0.5,
     marginBottom: 6,
   },
-
   question: {
     fontSize: 20,
     fontWeight: "700",
     lineHeight: 28,
   },
-
   answer: {
     fontSize: 16,
     opacity: 0.75,
     lineHeight: 24,
   },
-
   divider: {
     height: 1,
     backgroundColor: "#E5E7EB",
     marginVertical: 16,
   },
-
   empty: {
     textAlign: "center",
     opacity: 0.5,
     paddingVertical: 40,
   },
-
   progressText: {
     textAlign: "center",
     marginTop: 6,
     fontSize: 12,
     opacity: 0.6,
   },
-
   controls: {
     marginTop: 32,
     flexDirection: "row",
@@ -391,7 +399,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-
   actions: {
     marginTop: "auto",
     gap: 12,

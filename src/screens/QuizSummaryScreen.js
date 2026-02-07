@@ -81,6 +81,7 @@ export default function QuizSummaryScreen({ route, navigation }) {
         <View style={styles.actions}>
           {!passed && (
             <Button
+              icon='refresh'
               mode="outlined"
               onPress={handleRetry}
               style={styles.retryBtn}
@@ -90,6 +91,7 @@ export default function QuizSummaryScreen({ route, navigation }) {
           )}
 
           <Button
+            icon='check'
             mode="contained"
             onPress={handleDone}
             style={styles.doneBtn}

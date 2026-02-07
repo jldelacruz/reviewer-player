@@ -6,7 +6,7 @@ const EmptyReviewers = ({onPress, isHomeScreen = false}) => {
         <View style={styles.emptyContainer}>
             <IconButton
                 icon="book-open-blank-variant-outline"
-                size={72}
+                size={110}
                 iconColor="#CBD5E1"
             />
 

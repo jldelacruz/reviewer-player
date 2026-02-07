@@ -13,12 +13,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Speech from "expo-speech";
 
-import EmptyQnA from "../components/EmptyQnA";
-
 const SETTINGS_KEYS = {
   HAPTICS: "haptics_enabled",
   SHUFFLE: "quiz_shuffle",
   TTS_ENABLED: "tts_enabled",
+  TTS_RATE: "tts_rate",
 };
 
 export default function QuizScreen({ route, navigation }) {
@@ -29,14 +28,16 @@ export default function QuizScreen({ route, navigation }) {
 
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
   const [choices, setChoices] = useState([]);
+
+  const [selected, setSelected] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
 
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [shuffleEnabled, setShuffleEnabled] = useState(true);
   const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [ttsRate, setTtsRate] = useState("normal");
 
   const correctSound = useRef(null);
   const wrongSound = useRef(null);
@@ -57,13 +58,14 @@ export default function QuizScreen({ route, navigation }) {
   }, []);
 
   /* =====================
-     LOAD SETTINGS
+     SETTINGS
      ===================== */
   const loadSettings = async () => {
     const values = await AsyncStorage.multiGet([
       SETTINGS_KEYS.HAPTICS,
       SETTINGS_KEYS.SHUFFLE,
       SETTINGS_KEYS.TTS_ENABLED,
+      SETTINGS_KEYS.TTS_RATE,
     ]);
 
     let shuffle = true;
@@ -71,34 +73,31 @@ export default function QuizScreen({ route, navigation }) {
     values.forEach(([key, value]) => {
       if (value === null) return;
 
-      if (key === SETTINGS_KEYS.HAPTICS) {
+      if (key === SETTINGS_KEYS.HAPTICS)
         setHapticsEnabled(value !== "false");
-      }
 
       if (key === SETTINGS_KEYS.SHUFFLE) {
         shuffle = value !== "false";
         setShuffleEnabled(shuffle);
       }
 
-      if (key === SETTINGS_KEYS.TTS_ENABLED) {
+      if (key === SETTINGS_KEYS.TTS_ENABLED)
         setTtsEnabled(value !== "false");
-      }
+
+      if (key === SETTINGS_KEYS.TTS_RATE)
+        setTtsRate(value);
     });
 
     await loadQuestions(shuffle);
   };
 
-  /* =====================
-     LOAD QUESTIONS
-     ===================== */
   const loadQuestions = async (shouldShuffle) => {
     const saved = await AsyncStorage.getItem(QA_KEY);
     if (!saved) return setQuestions([]);
 
     let parsed = JSON.parse(saved);
-    if (shouldShuffle) {
+    if (shouldShuffle)
       parsed = [...parsed].sort(() => Math.random() - 0.5);
-    }
 
     setQuestions(parsed);
   };
@@ -120,35 +119,34 @@ export default function QuizScreen({ route, navigation }) {
   }, [currentIndex, questions]);
 
   /* =====================
-     TTS (QUESTION ONLY)
+     TTS
      ===================== */
+  const getSpeechRate = () =>
+    ttsRate === "slow" ? 0.75 : ttsRate === "fast" ? 1.15 : 0.95;
+
   useEffect(() => {
     if (!current || !ttsEnabled) return;
 
     Speech.stop();
-
-    const timeout = setTimeout(() => {
-      Speech.speak(current.question, {
-        rate: 0.95,
-        pitch: 1.0,
-      });
+    const t = setTimeout(() => {
+      Speech.speak(current.question, { rate: getSpeechRate() });
     }, 150);
 
     return () => {
-      clearTimeout(timeout);
+      clearTimeout(t);
       Speech.stop();
     };
-  }, [current, ttsEnabled]);
+  }, [current, ttsEnabled, ttsRate]);
 
   /* =====================
      HAPTICS
      ===================== */
-  const hapticImpact = async (style) => {
+  const impact = async (style) => {
     if (!hapticsEnabled) return;
     await Haptics.impactAsync(style);
   };
 
-  const hapticNotify = async (type) => {
+  const notify = async (type) => {
     if (!hapticsEnabled) return;
     await Haptics.notificationAsync(type);
   };
@@ -157,51 +155,54 @@ export default function QuizScreen({ route, navigation }) {
      SOUNDS
      ===================== */
   const loadSounds = async () => {
-    const correct = await Audio.Sound.createAsync(
-      require("../assets/sounds/correct.mp3")
-    );
-    const wrong = await Audio.Sound.createAsync(
-      require("../assets/sounds/wrong.mp3")
-    );
+    correctSound.current = (
+      await Audio.Sound.createAsync(
+        require("../assets/sounds/correct.mp3")
+      )
+    ).sound;
 
-    correctSound.current = correct.sound;
-    wrongSound.current = wrong.sound;
+    wrongSound.current = (
+      await Audio.Sound.createAsync(
+        require("../assets/sounds/wrong.mp3")
+      )
+    ).sound;
   };
 
   const unloadSounds = async () => {
-    if (correctSound.current) await correctSound.current.unloadAsync();
-    if (wrongSound.current) await wrongSound.current.unloadAsync();
+    correctSound.current?.unloadAsync();
+    wrongSound.current?.unloadAsync();
   };
 
   /* =====================
-     ANSWER SELECT
+     ANSWER FLOW
      ===================== */
   const selectAnswer = async (choice) => {
-    if (showAnswer) return;
-
+    if (submitted) return;
+    await impact(Haptics.ImpactFeedbackStyle.Light);
     setSelected(choice);
-    setShowAnswer(true);
+  };
 
+  const submitAnswer = async () => {
+    if (!selected || submitted) return;
+
+    setSubmitted(true);
     Speech.stop();
 
-    if (choice === current.answer) {
+    if (selected === current.answer) {
+      setCorrectCount((c) => c + 1);
       await correctSound.current?.replayAsync();
-      await hapticNotify(Haptics.NotificationFeedbackType.Success);
-      setCorrectCount((prev) => prev + 1);
+      await notify(Haptics.NotificationFeedbackType.Success);
     } else {
       await wrongSound.current?.replayAsync();
-      await hapticNotify(Haptics.NotificationFeedbackType.Error);
+      await notify(Haptics.NotificationFeedbackType.Error);
     }
   };
 
-  /* =====================
-     NEXT / FINISH
-     ===================== */
   const nextQuestion = async () => {
-    await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+    await impact(Haptics.ImpactFeedbackStyle.Light);
 
     setSelected(null);
-    setShowAnswer(false);
+    setSubmitted(false);
 
     if (currentIndex + 1 >= questions.length) {
       await AsyncStorage.setItem(
@@ -218,26 +219,13 @@ export default function QuizScreen({ route, navigation }) {
         reviewer,
       });
     } else {
-      setCurrentIndex((prev) => prev + 1);
+      setCurrentIndex((i) => i + 1);
     }
   };
 
   /* =====================
-     TTS TOGGLE
+     UI
      ===================== */
-  const toggleTTS = async () => {
-    await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-
-    const newValue = !ttsEnabled;
-    setTtsEnabled(newValue);
-    await AsyncStorage.setItem(
-      SETTINGS_KEYS.TTS_ENABLED,
-      String(newValue)
-    );
-
-    if (!newValue) Speech.stop();
-  };
-
   const progress =
     questions.length > 0
       ? (currentIndex + 1) / questions.length
@@ -248,26 +236,15 @@ export default function QuizScreen({ route, navigation }) {
       <View style={styles.container}>
         {/* HEADER */}
         <View style={styles.header}>
-          <IconButton
-            icon="arrow-left"
-            onPress={async () => {
-              await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
-              navigation.goBack();
-            }}
-          />
-
+          <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
           <Text variant="headlineSmall" style={styles.title}>
             {reviewer.title} Quiz
           </Text>
-
           <IconButton
             icon={ttsEnabled ? "volume-high" : "volume-off"}
-            onPress={toggleTTS}
-            iconColor={ttsEnabled ? "#4A90E2" : "#A1A1AA"}
+            onPress={() => setTtsEnabled(!ttsEnabled)}
           />
         </View>
-
-        {questions.length === 0 && <EmptyQnA onPress={() => {}} />}
 
         {questions.length > 0 && (
           <>
@@ -289,21 +266,18 @@ export default function QuizScreen({ route, navigation }) {
                     onPress={() => selectAnswer(choice)}
                     style={[
                       styles.option,
-                      isSelected && !showAnswer && styles.selected,
-                      showAnswer && isCorrect && styles.correct,
-                      showAnswer &&
-                        isSelected &&
-                        !isCorrect &&
-                        styles.wrong,
+                      isSelected && !submitted && styles.selected,
+                      submitted && isCorrect && styles.correct,
+                      submitted && isSelected && !isCorrect && styles.wrong,
                     ]}
                   >
                     <View style={styles.optionContent}>
                       <Text style={styles.optionText}>{choice}</Text>
 
-                      {showAnswer && isCorrect && (
+                      {submitted && isCorrect && (
                         <Icon source="check-circle" size={22} color="#2e7d32" />
                       )}
-                      {showAnswer && isSelected && !isCorrect && (
+                      {submitted && isSelected && !isCorrect && (
                         <Icon source="close-circle" size={22} color="#d32f2f" />
                       )}
                     </View>
@@ -312,16 +286,19 @@ export default function QuizScreen({ route, navigation }) {
               })}
             </View>
 
-            {showAnswer && (
+            {/* ACTION BUTTON */}
+            {selected && !submitted && (
               <View style={styles.bottomAction}>
-                <Button
-                  mode="contained"
-                  onPress={nextQuestion}
-                  contentStyle={{ paddingVertical: 12 }}
-                >
-                  {currentIndex + 1 === questions.length
-                    ? "Finish"
-                    : "Next"}
+                <Button mode="contained" onPress={submitAnswer}>
+                  Submit
+                </Button>
+              </View>
+            )}
+
+            {submitted && (
+              <View style={styles.bottomAction}>
+                <Button mode="contained" onPress={nextQuestion}>
+                  {currentIndex + 1 === questions.length ? "Finish" : "Next"}
                 </Button>
               </View>
             )}
@@ -336,86 +313,27 @@ export default function QuizScreen({ route, navigation }) {
    STYLES
    ===================== */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#FFF",
-  },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: 56,
-    marginBottom: 12,
-  },
-
-  title: {
-    flex: 1,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
-  progress: {
-    height: 6,
-    borderRadius: 6,
-  },
-
-  progressText: {
-    fontSize: 12,
-    opacity: 0.5,
-    marginTop: 6,
-  },
-
-  question: {
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 30,
-    marginTop: 20,
-    minHeight: 60,
-  },
-
-  options: {
-    marginTop: 24,
-    gap: 12,
-  },
-
+  container: { flex: 1, padding: 20, backgroundColor: "#FFF" },
+  header: { flexDirection: "row", alignItems: "center", height: 56 },
+  title: { flex: 1, fontWeight: "700", textAlign: "center" },
+  progress: { height: 6, borderRadius: 6 },
+  progressText: { fontSize: 12, opacity: 0.5, marginTop: 6 },
+  question: { fontSize: 22, fontWeight: "700", marginTop: 20 },
+  options: { marginTop: 24, gap: 12 },
   option: {
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "#E5E7EB",
-    backgroundColor: "#FFF",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    padding: 16,
   },
-
   optionContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
-  optionText: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-
-  selected: {
-    borderColor: "#7C3AED",
-    backgroundColor: "#F5F3FF",
-  },
-
-  correct: {
-    borderColor: "#2e7d32",
-    backgroundColor: "#E8F5E9",
-  },
-
-  wrong: {
-    borderColor: "#d32f2f",
-    backgroundColor: "#FDECEA",
-  },
-
-  bottomAction: {
-    marginTop: "auto",
-    paddingTop: 16,
-  },
+  optionText: { fontSize: 16, fontWeight: "500" },
+  selected: { borderColor: "#4A90E2", backgroundColor: "#F5F3FF" },
+  correct: { borderColor: "#2e7d32", backgroundColor: "#E8F5E9" },
+  wrong: { borderColor: "#d32f2f", backgroundColor: "#FDECEA" },
+  bottomAction: { marginTop: "auto", paddingTop: 16 },
 });

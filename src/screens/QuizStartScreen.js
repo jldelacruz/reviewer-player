@@ -5,6 +5,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 
+const SETTINGS_KEYS = {
+  HAPTICS: "haptics_enabled",
+};
+
 export default function QuizStartScreen({ route, navigation }) {
   const { reviewer } = route.params;
 
@@ -13,11 +17,28 @@ export default function QuizStartScreen({ route, navigation }) {
 
   const [lastScore, setLastScore] = useState(null);
   const [total, setTotal] = useState(0);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
 
   useEffect(() => {
     loadData();
+    loadSettings();
   }, []);
 
+  /* =====================
+     LOAD SETTINGS
+     ===================== */
+  const loadSettings = async () => {
+    const value = await AsyncStorage.getItem(
+      SETTINGS_KEYS.HAPTICS
+    );
+    if (value !== null) {
+      setHapticsEnabled(value === "true");
+    }
+  };
+
+  /* =====================
+     LOAD QUIZ DATA
+     ===================== */
   const loadData = async () => {
     const score = await AsyncStorage.getItem(SCORE_KEY);
     const qna = await AsyncStorage.getItem(QA_KEY);
@@ -31,11 +52,19 @@ export default function QuizStartScreen({ route, navigation }) {
     }
   };
 
+  /* =====================
+     HAPTICS (SAFE)
+     ===================== */
+  const hapticImpact = async (style) => {
+    if (!hapticsEnabled) return;
+    await Haptics.impactAsync(style);
+  };
+
   const passScore =
     total < 5 ? total - 1 : Math.ceil(total * 0.7);
 
   const startQuiz = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
     navigation.replace("Quiz", { reviewer });
   };
 
@@ -47,76 +76,90 @@ export default function QuizStartScreen({ route, navigation }) {
           <IconButton
             icon="arrow-left"
             onPress={async () => {
-              await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
+              await hapticImpact(
+                Haptics.ImpactFeedbackStyle.Light
+              );
               navigation.goBack();
             }}
           />
         </View>
+
         <View style={styles.summaryContainer}>
-            {/* ICON */}
-            <View style={styles.iconWrap}>
-                <Icon source="clipboard-text-outline" size={90} color="#4A90E2" />
-            </View>
+          {/* ICON */}
+          <View style={styles.iconWrap}>
+            <Icon
+              source="clipboard-text-outline"
+              size={90}
+              color="#4A90E2"
+            />
+          </View>
 
-            {/* TITLE */}
-            <Text style={styles.title}>
-                {reviewer.title} Quiz
-            </Text>
+          {/* TITLE */}
+          <Text style={styles.title}>
+            {reviewer.title} Quiz
+          </Text>
 
-            <Text style={styles.subtitle}>
-                Test what you’ve learned before moving on
-            </Text>
+          <Text style={styles.subtitle}>
+            Test what you’ve learned before moving on
+          </Text>
 
-            {/* LAST SCORE */}
-            {lastScore && (
+          {/* LAST SCORE */}
+          {lastScore && (
             <Card style={styles.scoreCard}>
-                <Card.Content style={styles.scoreContent}>
+              <Card.Content style={styles.scoreContent}>
                 <View style={styles.scoreBlock}>
-                    <Text style={styles.scoreNumber}>
+                  <Text style={styles.scoreNumber}>
                     {lastScore.correct}
-                    </Text>
-                    <Text style={styles.scoreLabel}>Correct</Text>
+                  </Text>
+                  <Text style={styles.scoreLabel}>
+                    Correct
+                  </Text>
                 </View>
 
                 <View style={styles.divider} />
 
                 <View style={styles.scoreBlock}>
-                    <Text style={styles.scoreNumber}>
+                  <Text style={styles.scoreNumber}>
                     {lastScore.total}
-                    </Text>
-                    <Text style={styles.scoreLabel}>Total</Text>
+                  </Text>
+                  <Text style={styles.scoreLabel}>
+                    Total
+                  </Text>
                 </View>
-                </Card.Content>
+              </Card.Content>
             </Card>
-            )}
+          )}
 
-            {/* DESCRIPTION */}
-            <Card style={styles.infoCard}>
+          {/* INFO */}
+          <Card style={styles.infoCard}>
             <Card.Content>
-                <Text style={styles.infoText}>
+              <Text style={styles.infoText}>
                 This quiz contains{" "}
-                <Text style={styles.bold}>{total}</Text> questions.
-                </Text>
+                <Text style={styles.bold}>{total}</Text>{" "}
+                questions.
+              </Text>
 
-                <Text style={styles.infoText}>
+              <Text style={styles.infoText}>
                 You need at least{" "}
-                <Text style={styles.bold}>{passScore}</Text> correct answers
-                to pass.
-                </Text>
+                <Text style={styles.bold}>
+                  {passScore}
+                </Text>{" "}
+                correct answers to pass.
+              </Text>
             </Card.Content>
-            </Card>
+          </Card>
 
-            {/* ACTION */}
-            <View style={styles.actions}>
+          {/* ACTION */}
+          <View style={styles.actions}>
             <Button
-                mode="contained"
-                onPress={startQuiz}
-                style={styles.startBtn}
-                contentStyle={{ paddingVertical: 8 }}
+              mode="contained"
+              onPress={startQuiz}
+              style={styles.startBtn}
+              contentStyle={{ paddingVertical: 8 }}
             >
-                Start Quiz
+              Start Quiz
             </Button>
-            </View>
+          </View>
         </View>
       </View>
     </SafeAreaView>

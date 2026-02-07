@@ -203,8 +203,9 @@ export default function QnAScreen({ route, navigation }) {
         <View style={styles.header}>
           <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
           <Text variant="titleLarge" style={styles.headerText}>
-            {reviewer.title}
+            {reviewer.title} Q&A
           </Text>
+          <View style={{ width: 40 }} />
         </View>
 
         {/* LIST */}
@@ -257,10 +258,10 @@ export default function QnAScreen({ route, navigation }) {
               style={{ marginBottom: 12, minHeight: 90 }}
             />
 
-            <Button mode="contained" onPress={saveQnAItem}>
+            <Button icon='check' mode="contained" onPress={saveQnAItem}>
               Save
             </Button>
-            <Button mode="text" onPress={async () => {
+            <Button icon='close' mode="text" style={{marginTop: 8}} onPress={async () => {
               await triggerHaptic();
               setModalVisible(false);
             }}>
@@ -280,17 +281,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFF",
+    padding: 20,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    height: 56,
   },
   headerText: {
+    flex: 1,
     fontWeight: "700",
+    textAlign: "center",
   },
   cardWrapper: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 2,
     marginBottom: 12,
     overflow: "visible",
   },

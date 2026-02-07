@@ -307,13 +307,14 @@ export default function ReviewersScreen({ navigation }) {
             />
 
             <Button
+              icon='check'
               mode="contained"
               onPress={saveReviewer}
               style={{ marginTop: 16 }}
             >
               Save
             </Button>
-            <Button mode="text" onPress={closeModal}>
+            <Button mode="text" icon='close' onPress={closeModal} style={{ marginTop: 8 }}>
               Cancel
             </Button>
           </View>

@@ -6,7 +6,7 @@ const EmptyQnA = ({onPress}) => {
         <View style={styles.emptyContainer}>
             <IconButton
                 icon="chat-question-outline"
-                size={72}
+                size={110}
                 iconColor="#CBD5E1"
             />
 

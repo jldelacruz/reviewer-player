@@ -12,14 +12,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 
 const SETTINGS_KEYS = {
-  TTS_ENABLED: "tts_enabled",
   TTS_RATE: "tts_rate",
   HAPTICS: "haptics_enabled",
   SHUFFLE: "quiz_shuffle",
 };
 
 export default function SettingsScreen() {
-  const [ttsEnabled, setTtsEnabled] = useState(true);
   const [ttsRate, setTtsRate] = useState("normal");
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [shuffleQuiz, setShuffleQuiz] = useState(true);
@@ -33,19 +31,17 @@ export default function SettingsScreen() {
 
   const loadSettings = async () => {
     const values = await AsyncStorage.multiGet([
-      SETTINGS_KEYS.TTS_ENABLED,
       SETTINGS_KEYS.TTS_RATE,
       SETTINGS_KEYS.HAPTICS,
       SETTINGS_KEYS.SHUFFLE,
     ]);
 
+    console.log(values);
+
     values.forEach(([key, value]) => {
       if (value === null) return;
 
       switch (key) {
-        case SETTINGS_KEYS.TTS_ENABLED:
-          setTtsEnabled(value === "true");
-          break;
         case SETTINGS_KEYS.TTS_RATE:
           setTtsRate(value);
           break;
@@ -101,22 +97,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         {/* STUDY */}
-        <List.Section title="Study">
-          <List.Item
-            title="Text-to-Speech"
-            left={() => <List.Icon icon="volume-high" />}
-            right={() => (
-              <Switch
-                value={ttsEnabled}
-                onValueChange={(val) => {
-                  setTtsEnabled(val);
-                  saveSetting(SETTINGS_KEYS.TTS_ENABLED, val);
-                }}
-              />
-            )}
-          />
-
-          <List.Subheader>Speech Speed</List.Subheader>
+        <List.Section title="Speech Speed">
           <RadioButton.Group
             onValueChange={(val) => {
               setTtsRate(val);
@@ -132,6 +113,7 @@ export default function SettingsScreen() {
           <Divider />
 
           <List.Item
+            style={styles.listItem}
             title="Haptic Feedback"
             left={() => <List.Icon icon="vibrate" />}
             right={() => (
@@ -149,6 +131,7 @@ export default function SettingsScreen() {
         {/* QUIZ */}
         <List.Section title="Quiz">
           <List.Item
+            style={styles.listItem}
             title="Shuffle Questions"
             left={() => <List.Icon icon="shuffle-variant" />}
             right={() => (
@@ -163,6 +146,7 @@ export default function SettingsScreen() {
           />
 
           <List.Item
+            style={styles.listItem}
             title="Pass Criteria"
             description="Miss ≤1 if under 5 questions, otherwise 70%"
             left={() => <List.Icon icon="information-outline" />}
@@ -172,6 +156,7 @@ export default function SettingsScreen() {
         {/* DATA */}
         <List.Section title="Data">
           <List.Item
+            style={styles.listItem}
             title="Reset Progress"
             titleStyle={{ color: "#d32f2f" }}
             left={() => (
@@ -198,4 +183,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF",
   },
+  listItem: {
+    marginLeft: 12
+  }
 });
