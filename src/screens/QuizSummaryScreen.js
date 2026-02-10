@@ -42,7 +42,7 @@ export default function QuizSummaryScreen({ route, navigation }) {
     if (hapticsEnabled) {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    navigation.goBack();
+    navigation.navigate("ReviewerDetails", { reviewer });
   };
 
   return (
@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
   },
 
   iconWrap: {
-    width: 130,
-    height: 130,
+    width: 150,
+    height: 150,
     borderRadius: 80,
     alignItems: "center",
     justifyContent: "center",
@@ -209,6 +209,5 @@ const styles = StyleSheet.create({
 
   doneBtn: {
     borderRadius: 16,
-    paddingVertical: 6,
   },
 });

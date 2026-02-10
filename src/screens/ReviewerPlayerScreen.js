@@ -229,7 +229,9 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
             icon="arrow-left"
             onPress={() => {
               impact();
-              navigation.goBack();
+              navigation.navigate("MainTabs", {
+                screen: "Reviewers",
+              });
             }}
           />
 
@@ -310,7 +312,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
         <View style={styles.actions}>
           <Button
             mode="contained"
-            icon="clipboard-check-outline"
+            icon="list-status"
             disabled={qnas.length === 0}
             onPress={() => {
               impact();
@@ -322,7 +324,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
 
           <Button
             mode="outlined"
-            icon="book-open-page-variant"
+            icon="playlist-edit"
             onPress={() => {
               impact();
               navigation.navigate("QnA", { reviewer });

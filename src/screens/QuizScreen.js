@@ -287,9 +287,13 @@ export default function QuizScreen({ route, navigation }) {
             </View>
 
             {/* ACTION BUTTON */}
-            {selected && !submitted && (
+            {!submitted && (
               <View style={styles.bottomAction}>
-                <Button mode="contained" onPress={submitAnswer}>
+                <Button mode="contained" 
+                icon='check'
+                onPress={submitAnswer} 
+                disabled={!selected} 
+                contentStyle={{ paddingVertical: 8 }}>
                   Submit
                 </Button>
               </View>
@@ -297,7 +301,11 @@ export default function QuizScreen({ route, navigation }) {
 
             {submitted && (
               <View style={styles.bottomAction}>
-                <Button mode="contained" onPress={nextQuestion}>
+                <Button 
+                  icon={currentIndex + 1 === questions.length ? "check" : "arrow-right"}
+                  mode="contained" 
+                  onPress={nextQuestion}
+                  contentStyle={{ paddingVertical: 8 }}>
                   {currentIndex + 1 === questions.length ? "Finish" : "Next"}
                 </Button>
               </View>

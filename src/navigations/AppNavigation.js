@@ -28,8 +28,8 @@ const AppNavigation = () => {
           />
 
           <Stack.Screen 
-            name="QnA" 
-            component={QnAScreen}
+            name="QuizStart" 
+            component={QuizStartScreen}
             options={{ headerShown: false }} 
           />
 
@@ -40,14 +40,14 @@ const AppNavigation = () => {
           />
 
           <Stack.Screen 
-            name="QuizStart" 
-            component={QuizStartScreen}
+            name="QuizSummary" 
+            component={QuizSummaryScreen}
             options={{ headerShown: false }} 
           />
 
           <Stack.Screen 
-            name="QuizSummary" 
-            component={QuizSummaryScreen}
+            name="QnA" 
+            component={QnAScreen}
             options={{ headerShown: false }} 
           />
 

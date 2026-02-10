@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
-import { Text, Button, Card, Icon, IconButton } from "react-native-paper";
+import { Text, Button, Icon, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
@@ -24,21 +24,13 @@ export default function QuizStartScreen({ route, navigation }) {
     loadSettings();
   }, []);
 
-  /* =====================
-     LOAD SETTINGS
-     ===================== */
   const loadSettings = async () => {
-    const value = await AsyncStorage.getItem(
-      SETTINGS_KEYS.HAPTICS
-    );
+    const value = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
     if (value !== null) {
       setHapticsEnabled(value === "true");
     }
   };
 
-  /* =====================
-     LOAD QUIZ DATA
-     ===================== */
   const loadData = async () => {
     const score = await AsyncStorage.getItem(SCORE_KEY);
     const qna = await AsyncStorage.getItem(QA_KEY);
@@ -52,9 +44,6 @@ export default function QuizStartScreen({ route, navigation }) {
     }
   };
 
-  /* =====================
-     HAPTICS (SAFE)
-     ===================== */
   const hapticImpact = async (style) => {
     if (!hapticsEnabled) return;
     await Haptics.impactAsync(style);
@@ -65,7 +54,7 @@ export default function QuizStartScreen({ route, navigation }) {
 
   const startQuiz = async () => {
     await hapticImpact(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.replace("Quiz", { reviewer });
+    navigation.navigate("Quiz", { reviewer });
   };
 
   return (
@@ -76,90 +65,58 @@ export default function QuizStartScreen({ route, navigation }) {
           <IconButton
             icon="arrow-left"
             onPress={async () => {
-              await hapticImpact(
-                Haptics.ImpactFeedbackStyle.Light
-              );
+              await hapticImpact(Haptics.ImpactFeedbackStyle.Light);
               navigation.goBack();
             }}
           />
-        </View>
 
-        <View style={styles.summaryContainer}>
-          {/* ICON */}
-          <View style={styles.iconWrap}>
-            <Icon
-              source="clipboard-text-outline"
-              size={90}
-              color="#4A90E2"
-            />
-          </View>
-
-          {/* TITLE */}
-          <Text style={styles.title}>
+          <Text variant="headlineSmall" style={styles.title}>
             {reviewer.title} Quiz
           </Text>
 
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* CONTENT */}
+        <View style={styles.content}>
+          <View style={styles.iconWrap}>
+            <Icon source="list-status" size={96} color="#4A90E2" />
+          </View>
+
+          <Text style={styles.headline}>Ready for the quiz?</Text>
+
           <Text style={styles.subtitle}>
-            Test what you’ve learned before moving on
+            This quiz helps you check how well you remember the material.
           </Text>
 
-          {/* LAST SCORE */}
           {lastScore && (
-            <Card style={styles.scoreCard}>
-              <Card.Content style={styles.scoreContent}>
-                <View style={styles.scoreBlock}>
-                  <Text style={styles.scoreNumber}>
-                    {lastScore.correct}
-                  </Text>
-                  <Text style={styles.scoreLabel}>
-                    Correct
-                  </Text>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.scoreBlock}>
-                  <Text style={styles.scoreNumber}>
-                    {lastScore.total}
-                  </Text>
-                  <Text style={styles.scoreLabel}>
-                    Total
-                  </Text>
-                </View>
-              </Card.Content>
-            </Card>
+            <Text style={styles.lastScore}>
+              You previously got{" "}
+              <Text style={styles.bold}>
+                {lastScore.correct} over {lastScore.total}
+              </Text>{" "}
+              score.
+            </Text>
           )}
 
-          {/* INFO */}
-          <Card style={styles.infoCard}>
-            <Card.Content>
-              <Text style={styles.infoText}>
-                This quiz contains{" "}
-                <Text style={styles.bold}>{total}</Text>{" "}
-                questions.
-              </Text>
-
-              <Text style={styles.infoText}>
-                You need at least{" "}
-                <Text style={styles.bold}>
-                  {passScore}
-                </Text>{" "}
-                correct answers to pass.
-              </Text>
-            </Card.Content>
-          </Card>
-
-          {/* ACTION */}
-          <View style={styles.actions}>
-            <Button
-              mode="contained"
-              onPress={startQuiz}
-              style={styles.startBtn}
-              contentStyle={{ paddingVertical: 8 }}
-            >
-              Start Quiz
-            </Button>
+          <View style={styles.meta}>
+            <Text style={styles.metaText}>
+              {total} questions • Passing score: {passScore}
+            </Text>
           </View>
+        </View>
+
+        {/* ACTION */}
+        <View style={styles.actions}>
+          <Button
+            icon="play"
+            mode="contained"
+            onPress={startQuiz}
+            style={styles.startBtn}
+            contentStyle={{ paddingVertical: 8 }}
+          >
+            Start Quiz
+          </Button>
         </View>
       </View>
     </SafeAreaView>
@@ -177,91 +134,71 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
   },
 
-  summaryContainer: {
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 56,
+  },
+
+  title: {
+    flex: 1,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
   iconWrap: {
-    width: 130,
-    height: 130,
-    borderRadius: 80,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: "#EEF4FF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
 
-  title: {
-    fontSize: 24,
+  headline: {
+    fontSize: 22,
     fontWeight: "800",
-    marginBottom: 6,
+    marginBottom: 8,
   },
 
   subtitle: {
     fontSize: 14,
     opacity: 0.6,
     textAlign: "center",
-    marginBottom: 28,
+    marginBottom: 26,
+    paddingHorizontal: 24,
   },
 
-  scoreCard: {
-    width: "100%",
-    borderRadius: 18,
-    marginBottom: 16,
-    elevation: 4,
-  },
-
-  scoreContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  scoreBlock: {
-    flex: 1,
-    alignItems: "center",
-  },
-
-  scoreNumber: {
-    fontSize: 22,
-    fontWeight: "800",
-  },
-
-  scoreLabel: {
-    fontSize: 12,
-    opacity: 0.6,
-    marginTop: 4,
-  },
-
-  divider: {
-    width: 1,
-    height: 36,
-    backgroundColor: "#E0E0E0",
-  },
-
-  infoCard: {
-    width: "100%",
-    borderRadius: 16,
-    marginBottom: 32,
-    elevation: 2,
-  },
-
-  infoText: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 6,
+  lastScore: {
+    fontSize: 15,
+    opacity: 0.75,
+    marginBottom: 12,
     textAlign: "center",
   },
 
   bold: {
-    fontWeight: "700",
+    fontWeight: "800",
     opacity: 1,
   },
 
+  meta: {
+    marginTop: 8,
+  },
+
+  metaText: {
+    fontSize: 13,
+    opacity: 0.5,
+  },
+
   actions: {
-    width: "100%",
+    // marginBottom: 12,
   },
 
   startBtn: {

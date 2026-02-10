@@ -156,7 +156,7 @@ export default function HomeScreen({ navigation }) {
         {/* PRIMARY CTA */}
         <Button
           mode="contained"
-          icon="play-circle"
+          icon="play"
           style={styles.cta}
           onPress={async () => {
             await triggerMediumImpact();
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   statLabel: { opacity: 0.6, marginTop: 4 },
   cta: {
     borderRadius: 14,
-    paddingVertical: 6,
+    paddingVertical: 8,
     marginBottom: 24,
   },
   sectionTitle: {
