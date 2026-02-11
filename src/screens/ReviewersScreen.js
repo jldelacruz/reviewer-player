@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   modalTitle: { marginBottom: 12, fontWeight: "700" },
-  lastStudiedText: { marginTop: 2, fontSize: 12, opacity: 0.5 },
+  lastStudiedText: { marginTop: 10, fontSize: 12, opacity: 0.5 },
   title: {
     flex: 1,
     fontWeight: "700",

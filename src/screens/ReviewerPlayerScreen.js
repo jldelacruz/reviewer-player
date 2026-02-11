@@ -40,6 +40,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     useCallback(() => {
       loadSettings();
       loadQnA();
+      saveLastStudied(); // ✅ SAVE HERE
       stopTTS(true);
 
       return () => stopTTS(true);
@@ -165,6 +166,7 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     if (isPlaying) {
       stopTTS(false);
     } else {
+      await saveLastStudied(); // ✅ SAVE WHEN STUDYING STARTS
       setIsPlaying(true);
       playAll();
     }
@@ -219,6 +221,18 @@ export default function ReviewerPlayerScreen({ route, navigation }) {
     qnas.length > 0
       ? (currentIndex + 1) / qnas.length
       : 0;
+
+  /* =========================
+   🕒 SAVE LAST STUDIED
+   ========================= */
+  const saveLastStudied = async () => {
+    const LAST_STUDIED_KEY = `reviewer_${reviewer.id}_last_studied`;
+
+    await AsyncStorage.setItem(
+      LAST_STUDIED_KEY,
+      Date.now().toString()
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
