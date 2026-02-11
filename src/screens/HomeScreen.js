@@ -167,7 +167,7 @@ export default function HomeScreen({ navigation }) {
         </Button>
 
         {/* RECENT */}
-        <Text style={styles.sectionTitle}>Your Reviewers</Text>
+        <Text style={styles.sectionTitle}>Continue Learning</Text>
 
         <FlatList
           data={reviewers.slice(0, 3)}
@@ -259,8 +259,8 @@ const styles = StyleSheet.create({
     marginTop: 24,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: "#f1f3ff",
+    backgroundColor: "#4A90E2",
   },
-  premiumTitle: { fontWeight: "700", marginBottom: 6 },
-  premiumText: { opacity: 0.7 },
+  premiumTitle: { fontWeight: "700", marginBottom: 6, color: "#fff" },
+  premiumText: { opacity: 0.7, color: "#fff" },
 });

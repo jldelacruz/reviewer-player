@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    height: 56,
+    minHeight: 56,
   },
   title: {
     flex: 1,
@@ -362,6 +362,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     borderRadius: 20,
     elevation: 4,
+    backgroundColor: "#f6f6f6",
   },
   label: {
     fontSize: 12,

@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    height: 56,
+    minHeight: 56,
   },
   headerText: {
     flex: 1,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 14,
-    backgroundColor: "#fff",
+    backgroundColor: "#f6f6f6",
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -331,7 +331,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingRight: 12,
-    backgroundColor: "#f6f7fb",
     borderRadius: 14,
   },
   fab: {

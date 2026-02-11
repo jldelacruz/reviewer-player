@@ -100,24 +100,48 @@ export default function ReviewersScreen({ navigation }) {
 
     const reviewersList = JSON.parse(stored);
 
-    const reviewersWithCount = await Promise.all(
+    const enriched = await Promise.all(
       reviewersList.map(async (reviewer) => {
-        const qnaKey = `reviewer_${reviewer.id}_qa`;
-        const qnaStored = await AsyncStorage.getItem(qnaKey);
-        const qnaList = qnaStored ? JSON.parse(qnaStored) : [];
+        const QA_KEY = `reviewer_${reviewer.id}_qa`;
+        const SCORE_KEY = `reviewer_${reviewer.id}_last_score`;
+        const LAST_STUDIED_KEY = `reviewer_${reviewer.id}_last_studied`;
 
-        const lastStudiedKey = `reviewer_${reviewer.id}_last_studied`;
-        const lastStudied = await AsyncStorage.getItem(lastStudiedKey);
+        const qnaStored = await AsyncStorage.getItem(QA_KEY);
+        const scoreStored = await AsyncStorage.getItem(SCORE_KEY);
+        const lastStudied = await AsyncStorage.getItem(LAST_STUDIED_KEY);
+
+        const qnaList = qnaStored ? JSON.parse(qnaStored) : [];
+        let quizStatus = "not_taken";
+        let scoreText = null;
+
+        if (scoreStored) {
+          const { correct, total } = JSON.parse(scoreStored);
+
+          const rawPercentage = correct / total;
+
+          const passed =
+            total < 5
+              ? correct >= total - 1
+              : rawPercentage >= 0.7;
+
+          quizStatus = passed ? "passed" : "failed";
+          scoreText = `${correct} / ${total}`;
+        }
 
         return {
           ...reviewer,
           count: qnaList.length,
           lastStudied,
+          quizStatus,
+          scoreText,
         };
       })
     );
 
-    setReviewers(reviewersWithCount);
+    // newest first
+    enriched.sort((a, b) => b.createdAt - a.createdAt);
+
+    setReviewers(enriched);
   };
 
   const saveReviewers = async (data) => {
@@ -156,7 +180,14 @@ export default function ReviewersScreen({ navigation }) {
             ? { ...r, title: title.trim() }
             : r
         )
-      : [...reviewers, { id: uuid.v4(), title: title.trim() }];
+      : [
+          {
+            id: uuid.v4(),
+            title: title.trim(),
+            createdAt: Date.now(),
+          },
+          ...reviewers,
+        ];
 
     await saveReviewers(updated);
     await successNotification();
@@ -190,22 +221,25 @@ export default function ReviewersScreen({ navigation }) {
   };
 
   /* =====================
-     👉 SWIPE ACTIONS
+     🏷️ STATUS BADGE
      ===================== */
-  const renderRightActions = (item) => (
-    <View style={styles.swipeActions}>
-      <IconButton
-        icon="pencil"
-        iconColor="#1976d2"
-        onPress={() => openEditModal(item)}
-      />
-      <IconButton
-        icon="delete"
-        iconColor="#d32f2f"
-        onPress={() => deleteReviewer(item)}
-      />
-    </View>
-  );
+  const StatusBadge = ({ status, score }) => {
+    const map = {
+      passed: { label: "Passed", bg: "#2E7D32", color: "#fff" },
+      failed: { label: "Failed", bg: "#C62828", color: "#fff" },
+      not_taken: { label: "Not taken", bg: "#bebfc2", color: "#fff" },
+    };
+
+    const s = map[status] || map["not_taken"];
+
+    return (
+      <View style={[styles.badge, { backgroundColor: s.bg }]}>
+        <Text style={[styles.badgeText, { color: s.color }]}>
+          {score ?? s.label}
+        </Text>
+      </View>
+    );
+  };
 
   /* =====================
      🎴 RENDER ITEM
@@ -225,7 +259,7 @@ export default function ReviewersScreen({ navigation }) {
           }}
         >
           <Card.Content style={styles.reviewerContent}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text variant="titleMedium" style={styles.cardTitle}>
                 {item.title}
               </Text>
@@ -240,12 +274,33 @@ export default function ReviewersScreen({ navigation }) {
                 </Text>
               )}
             </View>
-            
-            <IconButton icon="chevron-right" />
+
+            <View style={{ alignItems: "flex-end" }}>
+              <StatusBadge
+                status={item.quizStatus}
+                score={item.scoreText}
+              />
+              <IconButton icon="chevron-right" />
+            </View>
           </Card.Content>
         </Card>
       </View>
     </Swipeable>
+  );
+
+  const renderRightActions = (item) => (
+    <View style={styles.swipeActions}>
+      <IconButton
+        icon="pencil"
+        iconColor="#1976d2"
+        onPress={() => openEditModal(item)}
+      />
+      <IconButton
+        icon="delete"
+        iconColor="#d32f2f"
+        onPress={() => deleteReviewer(item)}
+      />
+    </View>
   );
 
   const formatLastStudied = (timestamp) => {
@@ -265,6 +320,7 @@ export default function ReviewersScreen({ navigation }) {
             My Reviewers
           </Text>
         </View>
+
         <FlatList
           data={reviewers}
           keyExtractor={(item) => item.id}
@@ -307,14 +363,19 @@ export default function ReviewersScreen({ navigation }) {
             />
 
             <Button
-              icon='check'
+              icon="check"
               mode="contained"
               onPress={saveReviewer}
               style={{ marginTop: 16 }}
             >
               Save
             </Button>
-            <Button mode="text" icon='close' onPress={closeModal} style={{ marginTop: 8 }}>
+            <Button
+              mode="text"
+              icon="close"
+              onPress={closeModal}
+              style={{ marginTop: 8 }}
+            >
               Cancel
             </Button>
           </View>
@@ -328,7 +389,7 @@ export default function ReviewersScreen({ navigation }) {
    🎨 STYLES
    ===================== */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF",  padding: 20 },
+  container: { flex: 1, backgroundColor: "#FFF", padding: 20 },
   swipeContainer: { overflow: "visible" },
   cardWrapper: { marginBottom: 12, overflow: "visible" },
   card: {
@@ -338,6 +399,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
+    backgroundColor: "#f6f6f6",
   },
   cardTitle: { fontWeight: "600" },
   countText: { marginTop: 4, opacity: 0.6 },
@@ -346,7 +408,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingRight: 12,
-    backgroundColor: "#f6f7fb",
     borderRadius: 14,
   },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
@@ -374,6 +435,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    height: 56,
+    minHeight: 56,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

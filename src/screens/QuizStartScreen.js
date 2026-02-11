@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    height: 56,
+    minHeight: 56,
   },
 
   title: {

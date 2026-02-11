@@ -36,8 +36,6 @@ export default function SettingsScreen() {
       SETTINGS_KEYS.SHUFFLE,
     ]);
 
-    console.log(values);
-
     values.forEach(([key, value]) => {
       if (value === null) return;
 

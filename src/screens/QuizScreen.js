@@ -173,6 +173,12 @@ export default function QuizScreen({ route, navigation }) {
     wrongSound.current?.unloadAsync();
   };
 
+  // 🔇 Mute correct/wrong sounds when TTS is ON
+  const playSoundIfAllowed = async (sound) => {
+    if (!ttsEnabled) return;
+    await sound?.replayAsync();
+  };
+
   /* =====================
      ANSWER FLOW
      ===================== */
@@ -190,10 +196,10 @@ export default function QuizScreen({ route, navigation }) {
 
     if (selected === current.answer) {
       setCorrectCount((c) => c + 1);
-      await correctSound.current?.replayAsync();
+      await playSoundIfAllowed(correctSound.current);
       await notify(Haptics.NotificationFeedbackType.Success);
     } else {
-      await wrongSound.current?.replayAsync();
+      await playSoundIfAllowed(wrongSound.current);
       await notify(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -234,7 +240,6 @@ export default function QuizScreen({ route, navigation }) {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
-        {/* HEADER */}
         <View style={styles.header}>
           <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
           <Text variant="headlineSmall" style={styles.title}>
@@ -286,14 +291,15 @@ export default function QuizScreen({ route, navigation }) {
               })}
             </View>
 
-            {/* ACTION BUTTON */}
             {!submitted && (
               <View style={styles.bottomAction}>
-                <Button mode="contained" 
-                icon='check'
-                onPress={submitAnswer} 
-                disabled={!selected} 
-                contentStyle={{ paddingVertical: 8 }}>
+                <Button
+                  mode="contained"
+                  icon="check"
+                  onPress={submitAnswer}
+                  disabled={!selected}
+                  contentStyle={{ paddingVertical: 8 }}
+                >
                   Submit
                 </Button>
               </View>
@@ -301,11 +307,16 @@ export default function QuizScreen({ route, navigation }) {
 
             {submitted && (
               <View style={styles.bottomAction}>
-                <Button 
-                  icon={currentIndex + 1 === questions.length ? "check" : "arrow-right"}
-                  mode="contained" 
+                <Button
+                  icon={
+                    currentIndex + 1 === questions.length
+                      ? "check"
+                      : "arrow-right"
+                  }
+                  mode="contained"
                   onPress={nextQuestion}
-                  contentStyle={{ paddingVertical: 8 }}>
+                  contentStyle={{ paddingVertical: 8 }}
+                >
                   {currentIndex + 1 === questions.length ? "Finish" : "Next"}
                 </Button>
               </View>
@@ -322,7 +333,7 @@ export default function QuizScreen({ route, navigation }) {
    ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#FFF" },
-  header: { flexDirection: "row", alignItems: "center", height: 56 },
+  header: { flexDirection: "row", alignItems: "center", minHeight: 56 },
   title: { flex: 1, fontWeight: "700", textAlign: "center" },
   progress: { height: 6, borderRadius: 6 },
   progressText: { fontSize: 12, opacity: 0.5, marginTop: 6 },
