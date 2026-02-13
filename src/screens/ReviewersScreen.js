@@ -34,6 +34,7 @@ export default function ReviewersScreen({ navigation }) {
   const [title, setTitle] = useState("");
   const [editingReviewer, setEditingReviewer] = useState(null);
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [isProUser, setIsProUser] = useState(false);
 
   /* =====================
      🔄 LOAD ON FOCUS
@@ -42,6 +43,7 @@ export default function ReviewersScreen({ navigation }) {
     const unsubscribe = navigation.addListener("focus", async () => {
       await loadSettings();
       await loadReviewers();
+      setIsProUser(false);
     });
 
     return unsubscribe;
@@ -174,6 +176,13 @@ export default function ReviewersScreen({ navigation }) {
   const saveReviewer = async () => {
     if (!title.trim()) return;
 
+    if(!editingReviewer) {
+      if (reviewers.filter(r => (r?.isSample ?? false) !== true).length >= 2 && !isProUser) {
+        navigation.navigate("Paywall");
+        return;
+      }
+    }
+
     const updated = editingReviewer
       ? reviewers.map((r) =>
           r.id === editingReviewer.id
@@ -188,6 +197,8 @@ export default function ReviewersScreen({ navigation }) {
           },
           ...reviewers,
         ];
+
+    
 
     await saveReviewers(updated);
     await successNotification();
@@ -268,7 +279,13 @@ export default function ReviewersScreen({ navigation }) {
                 {item.count} Q&A
               </Text>
 
-              {item.lastStudied && (
+              {(item.isSample ?? false) && (
+                <Text style={styles.lastStudiedText}>
+                  Sample Reviewer
+                </Text>
+              )}
+
+              {item.lastStudied && (!item.isSample ?? false) && (
                 <Text style={styles.lastStudiedText}>
                   {formatLastStudied(item.lastStudied)}
                 </Text>
@@ -291,6 +308,7 @@ export default function ReviewersScreen({ navigation }) {
   const renderRightActions = (item) => (
     <View style={styles.swipeActions}>
       <IconButton
+        disabled={item?.isSample ?? false}
         icon="pencil"
         iconColor="#1976d2"
         onPress={() => openEditModal(item)}

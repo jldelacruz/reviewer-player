@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
-  FlatList,
   Image,
 } from "react-native";
 import { Button } from "react-native-paper";

@@ -11,6 +11,7 @@ import QuizSummaryScreen from "../screens/QuizSummaryScreen";
 import QuizStartScreen from "../screens/QuizStartScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
+import PaywallScreen from "../screens/PaywallScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -21,7 +22,7 @@ const AppNavigation = () => {
   useEffect(() => {
     const check = async () => {
       const value = await AsyncStorage.getItem("onboarding_completed");
-      setShowOnboarding(true);
+      setShowOnboarding(value !== "true");
       setLoading(false);
     };
     check();
@@ -65,6 +66,10 @@ const AppNavigation = () => {
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
+        />
+        <Stack.Screen
+          name="Paywall"
+          component={PaywallScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

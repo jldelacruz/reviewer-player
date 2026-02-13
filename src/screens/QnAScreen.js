@@ -40,6 +40,7 @@ export default function QnAScreen({ route, navigation }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
+  const [isProUser, setIsProUser] = useState(false);
 
   /* =====================
      🔄 LOAD DATA + SETTINGS
@@ -47,6 +48,7 @@ export default function QnAScreen({ route, navigation }) {
   useEffect(() => {
     loadQnA();
     loadSettings();
+    setIsProUser(false);
   }, []);
 
   const loadSettings = async () => {
@@ -119,6 +121,12 @@ export default function QnAScreen({ route, navigation }) {
         q.id === editingQna.id ? { ...q, question, answer } : q
       );
     } else {
+      
+      if (qnas.length >= 20 && !isProUser) {
+        navigation.navigate("Paywall");
+        return;
+      }
+
       updated = [
         ...qnas,
         {
