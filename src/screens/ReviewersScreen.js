@@ -23,7 +23,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import EmptyReviewers from "../components/EmptyReviewers";
 
 const STORAGE_KEY = "reviewers";
-
+const TRIAL_DAYS = 7;
 const SETTINGS_KEYS = {
   HAPTICS: "haptics_enabled",
 };
@@ -43,11 +43,33 @@ export default function ReviewersScreen({ navigation }) {
     const unsubscribe = navigation.addListener("focus", async () => {
       await loadSettings();
       await loadReviewers();
-      setIsProUser(false);
+      await loadPremiumStatus();
     });
 
     return unsubscribe;
   }, [navigation]);
+
+  const checkTrialActive = async () => {
+    const trialStart = await AsyncStorage.getItem("trial_start_date");
+
+    if (!trialStart) return false;
+
+    const startDate = parseInt(trialStart, 10);
+    const now = Date.now();
+
+    const diffInDays = (now - startDate) / (1000 * 60 * 60 * 24);
+
+    return diffInDays <= TRIAL_DAYS;
+  };
+
+  const loadPremiumStatus = async () => {
+    const subscribed = await AsyncStorage.getItem("is_subscribed");
+    const isTrialActive = await checkTrialActive();
+
+    const premium = subscribed === "true" || isTrialActive;
+
+    setIsProUser(premium);
+  };
 
   /* =====================
      ⚙️ SETTINGS

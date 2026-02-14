@@ -5,16 +5,29 @@ import {
   TouchableOpacity,
   Image,
 } from "react-native";
+import { Icon } from "react-native-paper";
 import { Text, Button, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaywallScreen({ navigation }) {
   const [selected, setSelected] = useState("yearly");
 
+  const startTrial = async () => {
+    const now = Date.now();
+
+    await AsyncStorage.setItem("trial_start_date", now.toString());
+  };
+
+  const subscribeToPro = async () => { 
+    if (selected === "yearly") {
+      await startTrial();
+    }
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={styles.safe}>
       <View style={styles.wrapper}>
-        {/* CLOSE BUTTON */}
+        {/* CLOSE */}
         <IconButton
           icon="close"
           size={22}
@@ -29,93 +42,75 @@ export default function PaywallScreen({ navigation }) {
           resizeMode="contain"
         />
 
-        {/* CONTENT CARD */}
+        {/* CARD */}
         <View style={styles.card}>
           <Text style={styles.title}>
             Upgrade to <Text style={{ color: "#4A90E2" }}>Pro</Text>
           </Text>
 
           <Text style={styles.subtitle}>
-            Study unlimited. Listen unlimited.
-            Master faster.
+            Unlock unlimited reviewers and Q&A.
+            Study without limits.
           </Text>
 
-          {/* FEATURES LINK STYLE */}
-          <Text style={styles.featuresLink}>
-            + Unlimited Reviewers
-          </Text>
+          {/* FEATURES */}
+          <View style={styles.featureList}>
+            <Text style={styles.feature}><Icon source='book-open-variant' size={15} /> Unlimited Reviewers</Text>
+            <Text style={styles.feature}><Icon source='list-status' size={15} />  Unlimited Q&A</Text>
+            {/* <Text style={styles.feature}><Icon source='headphones' size={15} /> Background Play</Text> */}
+            <Text style={styles.feature}><Icon source='rocket-launch' size={15} /> Future Premium Features</Text>
+          </View>
 
-          {/* YEARLY PLAN */}
-          <TouchableOpacity
-            style={[
-              styles.plan,
-              selected === "yearly" && styles.selectedPlan,
-            ]}
-            onPress={() => setSelected("yearly")}
-          >
-            <View>
-              <Text style={styles.planTitle}>
-                Yearly Plan 🔥
-              </Text>
-              <Text style={styles.planSub}>
-                Best value • Save more
-              </Text>
-            </View>
+          {/* PLANS ROW */}
+          <View style={styles.planRow}>
+            {/* MONTHLY */}
+            <TouchableOpacity
+              style={[
+                styles.planBox,
+                selected === "monthly" && styles.selectedPlan,
+              ]}
+              onPress={() => setSelected("monthly")}
+            >
+              <Text style={styles.planLabel}>Monthly</Text>
+              <Text style={styles.planPrice}>$3.99</Text>
+              <Text style={styles.planSub}>per month</Text>
+            </TouchableOpacity>
 
-            <Text style={styles.price}>$24.99</Text>
-          </TouchableOpacity>
+            {/* YEARLY */}
+            <TouchableOpacity
+              style={[
+                styles.planBox,
+                selected === "yearly" && styles.selectedPlan,
+              ]}
+              onPress={() => setSelected("yearly")}
+            >
+              {/* DISCOUNT BADGE */}
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>Save 60%</Text>
+              </View>
 
-          {/* MONTHLY PLAN */}
-          <TouchableOpacity
-            style={[
-              styles.plan,
-              selected === "monthly" && styles.selectedPlan,
-            ]}
-            onPress={() => setSelected("monthly")}
-          >
-            <View>
-              <Text style={styles.planTitle}>
-                Monthly Plan
-              </Text>
-              <Text style={styles.planSub}>
-                Flexible billing
-              </Text>
-            </View>
-
-            <Text style={styles.price}>$3.99</Text>
-          </TouchableOpacity>
-
-          {/* LIFETIME */}
-          <TouchableOpacity
-            style={[
-              styles.plan,
-              selected === "lifetime" && styles.selectedPlan,
-            ]}
-            onPress={() => setSelected("lifetime")}
-          >
-            <View>
-              <Text style={styles.planTitle}>
-                Lifetime Access
-              </Text>
-              <Text style={styles.planSub}>
-                One-time payment
-              </Text>
-            </View>
-
-            <Text style={styles.price}>$49.99</Text>
-          </TouchableOpacity>
+              <Text style={styles.planLabel}>Annually</Text>
+              <Text style={styles.planPrice}>$24.99</Text>
+              <Text style={styles.planSub}>Free for 7 days, then $24.99/year</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* CTA */}
           <Button
             mode="contained"
             style={styles.subscribeBtn}
-            onPress={() => {
-              // Hook up purchase logic later
-              navigation.goBack();
-            }}
-          >
-            Subscribe Now
+            contentStyle={{ paddingVertical: 6 }}
+            onPress={async () => {
+                await subscribeToPro();
+                navigation.goBack();
+              }}
+            >
+            {selected === 'yearly' ? 'Start 7-Day Unlimited Free Trial' : 'Subscribe Monthly'}
           </Button>
+
+          <Text style={styles.trialNote}>
+            No charge today • Cancel anytime
+          </Text>
         </View>
       </View>
     </SafeAreaView>
@@ -123,6 +118,10 @@ export default function PaywallScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: "#F5F8FF",
+  },
   wrapper: {
     flex: 1,
     justifyContent: "flex-end",
@@ -133,12 +132,9 @@ const styles = StyleSheet.create({
     top: 10,
     zIndex: 10,
   },
-  illustrationBox: {
-    alignItems: "center",
-    marginTop: 60,
-  },
-  emoji: {
-    fontSize: 60,
+  image: {
+    height: 240,
+    width: "100%",
   },
   card: {
     backgroundColor: "#fff",
@@ -158,49 +154,70 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 16,
   },
-  featuresLink: {
-    textAlign: "center",
-    color: "#4A90E2",
+  featureList: {
     marginBottom: 20,
-    fontWeight: "600",
   },
-  plan: {
+  feature: {
+    textAlign: "center",
+    fontSize: 13,
+    marginBottom: 4,
+    opacity: 0.8,
+  },
+  planRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    marginBottom: 20,
+  },
+  planBox: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 16,
+    borderColor: "#E5E7EB",
+    borderRadius: 18,
     padding: 16,
-    marginBottom: 12,
+    marginHorizontal: 5,
+    alignItems: "center",
+    position: "relative",
   },
   selectedPlan: {
     borderColor: "#4A90E2",
     backgroundColor: "#F0F6FF",
   },
-  planTitle: {
+  badge: {
+    position: "absolute",
+    top: -10,
+    backgroundColor: "#4A90E2",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  planLabel: {
     fontWeight: "700",
     fontSize: 15,
   },
+  planPrice: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#4A90E2",
+    marginTop: 4,
+  },
   planSub: {
     fontSize: 12,
-    opacity: 0.5,
+    opacity: 0.6,
     marginTop: 2,
   },
-  price: {
-    fontWeight: "800",
-    fontSize: 16,
-    color: "#4A90E2",
-  },
   subscribeBtn: {
-    marginTop: 14,
-    borderRadius: 16,
-    paddingVertical: 8,
+    borderRadius: 18,
     backgroundColor: "#4A90E2",
   },
-  link: {
+  trialNote: {
+    textAlign: "center",
     fontSize: 12,
     opacity: 0.6,
+    marginTop: 8,
   },
-  image: { height: 260, width: "100%", marginTop: 40 },
 });
