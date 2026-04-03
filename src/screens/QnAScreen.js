@@ -28,7 +28,8 @@ import EmptyQnA from "../components/EmptyQnA";
    ===================== */
 const SETTINGS_KEYS = {
   HAPTICS: "haptics_enabled",
-};
+  TRIAL_DAYS: 7,
+}; 
 
 export default function QnAScreen({ route, navigation }) {
   const { reviewer } = route.params;
@@ -46,16 +47,43 @@ export default function QnAScreen({ route, navigation }) {
      🔄 LOAD DATA + SETTINGS
      ===================== */
   useEffect(() => {
-    loadQnA();
-    loadSettings();
-    setIsProUser(false);
-  }, []);
+    const unsubscribe = navigation.addListener("focus", async () => {
+      await loadSettings();
+      await loadQnA();
+      await loadPremiumStatus();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+  
 
   const loadSettings = async () => {
     const value = await AsyncStorage.getItem(SETTINGS_KEYS.HAPTICS);
     if (value !== null) {
       setHapticsEnabled(value === "true");
     }
+  };
+
+  const checkTrialActive = async () => {
+    const trialStart = await AsyncStorage.getItem("trial_start_date");
+
+    if (!trialStart) return false;
+
+    const startDate = parseInt(trialStart, 10);
+    const now = Date.now();
+
+    const diffInDays = (now - startDate) / (1000 * 60 * 60 * 24);
+
+    return diffInDays <= SETTINGS_KEYS.TRIAL_DAYS;
+  };
+
+  const loadPremiumStatus = async () => {
+    const subscribed = await AsyncStorage.getItem("is_subscribed");
+    const isTrialActive = await checkTrialActive();
+
+    const premium = subscribed === "true" || isTrialActive;
+
+    setIsProUser(premium);
   };
 
   /* =====================

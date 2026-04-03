@@ -8,13 +8,13 @@ import {
 import { Icon } from "react-native-paper";
 import { Text, Button, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function PaywallScreen({ navigation }) {
   const [selected, setSelected] = useState("yearly");
 
   const startTrial = async () => {
     const now = Date.now();
-
     await AsyncStorage.setItem("trial_start_date", now.toString());
   };
 
@@ -22,6 +22,8 @@ export default function PaywallScreen({ navigation }) {
     if (selected === "yearly") {
       await startTrial();
     }
+
+    navigation.goBack();
   }
 
   return (
@@ -100,10 +102,7 @@ export default function PaywallScreen({ navigation }) {
             mode="contained"
             style={styles.subscribeBtn}
             contentStyle={{ paddingVertical: 6 }}
-            onPress={async () => {
-                await subscribeToPro();
-                navigation.goBack();
-              }}
+            onPress={subscribeToPro}
             >
             {selected === 'yearly' ? 'Start 7-Day Unlimited Free Trial' : 'Subscribe Monthly'}
           </Button>

@@ -23,9 +23,9 @@ import { Swipeable } from "react-native-gesture-handler";
 import EmptyReviewers from "../components/EmptyReviewers";
 
 const STORAGE_KEY = "reviewers";
-const TRIAL_DAYS = 7;
 const SETTINGS_KEYS = {
   HAPTICS: "haptics_enabled",
+  TRIAL_DAYS: 7,
 };
 
 export default function ReviewersScreen({ navigation }) {
@@ -59,7 +59,7 @@ export default function ReviewersScreen({ navigation }) {
 
     const diffInDays = (now - startDate) / (1000 * 60 * 60 * 24);
 
-    return diffInDays <= TRIAL_DAYS;
+    return diffInDays <= SETTINGS_KEYS.TRIAL_DAYS;
   };
 
   const loadPremiumStatus = async () => {

@@ -348,9 +348,9 @@ const styles = StyleSheet.create({
   optionContent: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
-  optionText: { fontSize: 16, fontWeight: "500" },
+  optionText: { fontSize: 16, fontWeight: "500", flex: 1 },
   selected: { borderColor: "#4A90E2", backgroundColor: "#F5F3FF" },
   correct: { borderColor: "#2e7d32", backgroundColor: "#E8F5E9" },
   wrong: { borderColor: "#d32f2f", backgroundColor: "#FDECEA" },
