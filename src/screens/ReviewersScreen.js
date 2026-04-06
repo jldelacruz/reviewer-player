@@ -22,6 +22,8 @@ import * as Haptics from "expo-haptics";
 import { Swipeable } from "react-native-gesture-handler";
 import EmptyReviewers from "../components/EmptyReviewers";
 
+import Purchases from "react-native-purchases";
+
 const STORAGE_KEY = "reviewers";
 const SETTINGS_KEYS = {
   HAPTICS: "haptics_enabled",
@@ -49,26 +51,28 @@ export default function ReviewersScreen({ navigation }) {
     return unsubscribe;
   }, [navigation]);
 
-  const checkTrialActive = async () => {
-    const trialStart = await AsyncStorage.getItem("trial_start_date");
+  // const loadPremiumStatus = async () => {
+  //   const subscribed = await AsyncStorage.getItem("is_subscribed");
+  //   const isTrialActive = await checkTrialActive();
 
-    if (!trialStart) return false;
+  //   const premium = subscribed === "true" || isTrialActive;
 
-    const startDate = parseInt(trialStart, 10);
-    const now = Date.now();
-
-    const diffInDays = (now - startDate) / (1000 * 60 * 60 * 24);
-
-    return diffInDays <= SETTINGS_KEYS.TRIAL_DAYS;
-  };
+  //   setIsProUser(premium);
+  // };
 
   const loadPremiumStatus = async () => {
-    const subscribed = await AsyncStorage.getItem("is_subscribed");
-    const isTrialActive = await checkTrialActive();
+    try {
+      const customerInfo = await Purchases.getCustomerInfo();
 
-    const premium = subscribed === "true" || isTrialActive;
+      const entitlement = customerInfo.entitlements.active["Recally AI Pro"];
 
-    setIsProUser(premium);
+      const premium = !!entitlement;
+
+      setIsProUser(premium);
+
+    } catch (e) {
+      console.log("Error loading premium status:", e);
+    }
   };
 
   /* =====================
@@ -200,7 +204,14 @@ export default function ReviewersScreen({ navigation }) {
 
     if(!editingReviewer) {
       if (reviewers.filter(r => (r?.isSample ?? false) !== true).length >= 2 && !isProUser) {
-        navigation.navigate("Paywall");
+        Alert.alert(
+          "Limit reached",
+          "Upgrade to Pro for unlimited reviewers.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Upgrade", onPress: () => navigation.navigate("Paywall") }
+          ]
+        );
         return;
       }
     }
@@ -339,6 +350,7 @@ export default function ReviewersScreen({ navigation }) {
         icon="delete"
         iconColor="#d32f2f"
         onPress={() => deleteReviewer(item)}
+        disabled={item?.isSample ?? false}
       />
     </View>
   );

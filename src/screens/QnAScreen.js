@@ -23,6 +23,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import uuid from "react-native-uuid";
 import EmptyQnA from "../components/EmptyQnA";
 
+import Purchases from "react-native-purchases";
+
 /* =====================
    🔑 SETTINGS KEYS
    ===================== */
@@ -64,26 +66,28 @@ export default function QnAScreen({ route, navigation }) {
     }
   };
 
-  const checkTrialActive = async () => {
-    const trialStart = await AsyncStorage.getItem("trial_start_date");
+  // const loadPremiumStatus = async () => {
+  //   const subscribed = await AsyncStorage.getItem("is_subscribed");
+  //   const isTrialActive = await checkTrialActive();
 
-    if (!trialStart) return false;
+  //   const premium = subscribed === "true" || isTrialActive;
 
-    const startDate = parseInt(trialStart, 10);
-    const now = Date.now();
-
-    const diffInDays = (now - startDate) / (1000 * 60 * 60 * 24);
-
-    return diffInDays <= SETTINGS_KEYS.TRIAL_DAYS;
-  };
+  //   setIsProUser(premium);
+  // };
 
   const loadPremiumStatus = async () => {
-    const subscribed = await AsyncStorage.getItem("is_subscribed");
-    const isTrialActive = await checkTrialActive();
+    try {
+      const customerInfo = await Purchases.getCustomerInfo();
 
-    const premium = subscribed === "true" || isTrialActive;
+      const entitlement = customerInfo.entitlements.active["Recally AI Pro"];
 
-    setIsProUser(premium);
+      const premium = !!entitlement;
+
+      setIsProUser(premium);
+
+    } catch (e) {
+      console.log("Error loading premium status:", e);
+    }
   };
 
   /* =====================
@@ -151,7 +155,14 @@ export default function QnAScreen({ route, navigation }) {
     } else {
       
       if (qnas.length >= 20 && !isProUser) {
-        navigation.navigate("Paywall");
+        Alert.alert(
+          "Limit reached",
+          "Upgrade to Pro for unlimited Q&A.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Upgrade", onPress: () => navigation.navigate("Paywall") }
+          ]
+        );
         return;
       }
 

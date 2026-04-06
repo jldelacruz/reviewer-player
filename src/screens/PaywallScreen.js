@@ -1,30 +1,95 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
 } from "react-native";
 import { Icon } from "react-native-paper";
 import { Text, Button, IconButton } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import Purchases from 'react-native-purchases';
+
 export default function PaywallScreen({ navigation }) {
   const [selected, setSelected] = useState("yearly");
+  const [packages, setPackages] = useState(null);
 
-  const startTrial = async () => {
-    const now = Date.now();
-    await AsyncStorage.setItem("trial_start_date", now.toString());
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const offerings = await Purchases.getOfferings();
+        if (offerings.current) {
+          setPackages(offerings.current.availablePackages);
+        }
+      } catch (e) {
+        console.log("Error fetching offerings:", e);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  // const startTrial = async () => {
+  //   const now = Date.now();
+  //   await AsyncStorage.setItem("trial_start_date", now.toString());
+  // };
+
+  const subscribeToPro = async () => {
+    try {
+      if (!packages) return;
+
+      let selectedPackage;
+
+      if (selected === "monthly") {
+        selectedPackage = packages.find(p => p.identifier === "$rc_monthly");
+      } else {
+        selectedPackage = packages.find(p => p.identifier === "$rc_annual");
+      }
+
+      if (!selectedPackage) {
+        console.log("Package not found");
+        return;
+      }
+
+      const { customerInfo } = await Purchases.purchasePackage(selectedPackage);
+
+      if (customerInfo.entitlements.active["Recally AI Pro"]) {
+        // console.log("✅ User is now Recally AI Pro!");
+        Alert.alert(
+          "Subscription Successful",
+          "Successfully subscribed to Recally AI Pro! Enjoy unlimited reviewers, Q&A and AI features.",
+          [
+            { text: "Ok", onPress: () => navigation.goBack() }
+          ]
+        );
+      }
+
+    } catch (e) {
+      if (!e.userCancelled) {
+        console.log("Purchase error:", e);
+      }
+    }
   };
 
-  const subscribeToPro = async () => { 
-    if (selected === "yearly") {
-      await startTrial();
-    }
+  const restorePurchases = async () => {
+    try {
+      const customerInfo = await Purchases.restorePurchases();
 
-    navigation.goBack();
-  }
+      if (customerInfo.entitlements.active["Recally AI Pro"]) {
+        alert("✅ Subscription restored!");
+        navigation.goBack();
+      } else {
+        alert("⚠️No active subscription found.");
+      }
+
+    } catch (e) {
+      console.log("Restore error:", e);
+      alert("Something went wrong while restoring.");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -74,7 +139,7 @@ export default function PaywallScreen({ navigation }) {
               onPress={() => setSelected("monthly")}
             >
               <Text style={styles.planLabel}>Monthly</Text>
-              <Text style={styles.planPrice}>$3.99</Text>
+              <Text style={styles.planPrice}>$4.99</Text>
               <Text style={styles.planSub}>per month</Text>
             </TouchableOpacity>
 
@@ -88,12 +153,12 @@ export default function PaywallScreen({ navigation }) {
             >
               {/* DISCOUNT BADGE */}
               <View style={styles.badge}>
-                <Text style={styles.badgeText}>Save 60%</Text>
+                <Text style={styles.badgeText}>Save 40%</Text>
               </View>
 
-              <Text style={styles.planLabel}>Annually</Text>
-              <Text style={styles.planPrice}>$24.99</Text>
-              <Text style={styles.planSub}>Free for 7 days, then $24.99/year</Text>
+              <Text style={styles.planLabel}>Yearly</Text>
+              <Text style={styles.planPrice}>$39.99</Text>
+              <Text style={styles.planSub}>Free for 7 days, then $39.99/year</Text>
             </TouchableOpacity>
           </View>
 
@@ -110,6 +175,13 @@ export default function PaywallScreen({ navigation }) {
           <Text style={styles.trialNote}>
             No charge today • Cancel anytime
           </Text>
+
+          {/* RESTORE BUTTON */}
+          <TouchableOpacity onPress={restorePurchases}>
+            <Text style={styles.restoreText}>
+              Restore Purchases
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -218,5 +290,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     opacity: 0.6,
     marginTop: 8,
+  },
+  restoreText: {
+    textAlign: "center",
+    fontSize: 13,
+    opacity: 0.6,
+    marginTop: 12,
+    textDecorationLine: "underline",
   },
 });
